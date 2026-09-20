@@ -1,0 +1,7 @@
+geopandas>=1.0
+shapely>=2.0
+pyogrio>=0.7
+pyproj>=3.5
+pandas>=2.0
+numpy>=1.24
+openpyxl>=3.1

@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "computo-planaveg"
+version = "0.1.0"
+description = "Cômputo Planaveg 2026: hierarquia de sobreposições para o reporte de áreas em recuperação da vegetação nativa"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Mauricio Braga Meira" }]
+dependencies = [
+    "geopandas>=1.0",
+    "shapely>=2.0",
+    "pyogrio>=0.7",
+    "pyproj>=3.5",
+    "pandas>=2.0",
+    "numpy>=1.24",
+    "openpyxl>=3.1",
+]
+
+[tool.setuptools]
+packages = ["computo"]
+py-modules = ["config_computo"]

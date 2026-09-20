@@ -1,0 +1,18 @@
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+.ipynb_checkpoints/
+
+# Dados e saídas pesadas ficam no Dropbox, fora do repositório
+*.gpkg
+*.gpkg-wal
+*.gpkg-shm
+*.shp
+*.zip
+
+# Controle de execução local
+_logs/
+_progresso/
+_done_*.txt
+heartbeat_*.txt
