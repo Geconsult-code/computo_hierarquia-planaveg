@@ -24,10 +24,10 @@ versão 2022, 4 embargos ficam sem VS).
 |---|---|---|
 | Papel dos embargos | entram como "Outros projetos" só pela interseção com a VS qualificada | Decidido (20/09/2026) |
 | Versões da VS | duas: `vs22q` e `vs2224q` (Amazônia e Cerrado pela VS 2024). **A geometria da classe muda com a versão**, porque a área da classe é a própria VS | Decidido |
-| E1 - elegibilidade | o arquivo não tem campo de status: entram todos os 50.674 embargos; o filtro é ter VS dentro | Adotado, a confirmar |
-| E2 - sobreposição entre embargos | a área fica com o embargo mais antigo (`dat_embarg`), depois o de menor FID; muda só a atribuição, não o total | Adotado, a confirmar |
-| E3 - saídas por versão | um conjunto de polígonos líquidos por versão (as classes seguintes vão subtrair o da versão que estiverem calculando) | Adotado |
-| E4 - data do embargo | nenhum filtro pela data do embargo x ano da VS | Adotado, a confirmar (ver abaixo) |
+| E1 - elegibilidade | o arquivo não tem campo de status: entram todos os 50.674 embargos; o filtro é ter VS dentro | Decidido (21/09/2026) |
+| E2 - sobreposição entre embargos | a área fica com o embargo mais antigo (`dat_embarg`), depois o de menor FID; muda só a atribuição, não o total | Decidido (21/09/2026) |
+| E3 - saídas por versão | um conjunto de polígonos líquidos por versão (as classes seguintes vão subtrair o da versão que estiverem calculando) | Decidido (21/09/2026) |
+| E4 - data do embargo | nenhum filtro pela data do embargo x ano da VS | Decidido (21/09/2026): não filtrar |
 
 ## Hierarquia
 
@@ -49,12 +49,12 @@ versão 2022, 4 embargos ficam sem VS).
 | **Área líquida da classe 4 (ha)** | **356.833,7** | **348.571,8** |
 | Acumulado das classes 1, 3 e 4 (ha) | 497.446,2 | 489.184,4 |
 
-## Ponto a confirmar (E4): data do embargo x ano da VS
+## E4 (decidido em 21/09/2026: não filtrar): data do embargo x ano da VS
 
 A VS de 2022 (ou de 2024) existia antes de embargos posteriores; a regeneração não é consequência desses embargos. Na versão vs22q,
 73,2 mil ha (20,5%) da área líquida estão em embargos de 2023 em diante (35,6 mil ha em 2023-2024 e 37,7 mil ha em 2025-2026); na vs2224q,
-61,6 mil ha (17,7%) em embargos de 2023 em diante (31,1 mil ha de 2025 em diante, posteriores à VS 2024 da Amazônia e do Cerrado). O cômputo atual
-não filtra por data. Um filtro é uma mudança pequena (ex.: `ano_embargo <= ano da VS`), mas a regra é decisão sua.
+61,6 mil ha (17,7%) em embargos de 2023 em diante (31,1 mil ha de 2025 em diante, posteriores à VS 2024 da Amazônia e do Cerrado). O cômputo
+não filtra por data (decisão do usuário em 21/09/2026): todos os polígonos com VS ficam. A coluna `ano_embargo` permanece nas saídas, caso um filtro seja pedido depois.
 
 ## Conferências (`T4_conferencias.csv`, por versão)
 

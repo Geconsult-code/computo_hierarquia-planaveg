@@ -74,11 +74,13 @@ def subtrair_precedentes(pecas, precedentes):
     restantes = pecas.copy()
     retirada = np.zeros(len(pecas), dtype=float)
     prec = np.array([g for g in precedentes if g is not None and not g.is_empty], dtype=object)
+    tocadas = np.array([], dtype=int)
     if len(prec) and len(pecas):
         tree = STRtree(prec)
         ii, jj = tree.query(pecas, predicate="intersects")
         ordem = np.argsort(ii, kind="stable")
         ii, jj = ii[ordem], jj[ordem]
+        tocadas = np.unique(ii)      # só as peças que tocam alguma precedente têm a área recalculada
         if len(ii):
             inicios = np.flatnonzero(np.r_[True, ii[1:] != ii[:-1]])
             fins = np.r_[inicios[1:], len(ii)]
@@ -86,12 +88,77 @@ def subtrair_precedentes(pecas, precedentes):
                 i = ii[a]
                 u = uniao_robusta(list(prec[jj[a:b]]))
                 restantes[i] = so_poligonos(diferenca_robusta([pecas[i]], [u])[0])
-    a_bruta = area_ha(pecas)
-    a_rest = area_ha([g for g in restantes])
-    retirada = np.where(a_bruta - a_rest < MIN_INTER_HA, 0.0, a_bruta - a_rest)
-    for i in np.where(a_rest < MIN_INTER_HA)[0]:
-        restantes[i] = None
+    if len(tocadas):
+        a_bruta = area_ha(pecas[tocadas])
+        a_rest = area_ha([g for g in restantes[tocadas]])
+        retirada[tocadas] = np.where(a_bruta - a_rest < MIN_INTER_HA, 0.0, a_bruta - a_rest)
+        for k in np.where(a_rest < MIN_INTER_HA)[0]:
+            restantes[tocadas[k]] = None
     return restantes, retirada
+
+
+def subtrair_grandes(pecas, grandes, min_vertices_preparar=200):
+    """Subtrai polígonos GRANDES (ex.: o CAR dissolvido de uma UF) de peças pequenas.
+
+    Para cada par peça x parte: se a parte CONTÉM a peça, a peça sai inteira (teste com geometria preparada, rápido);
+    senão a parte é recortada pela caixa da peça (clip_by_rect) antes da diferença, para não operar com milhões de vértices.
+    ``grandes`` pode ser multipolígonos; são explodidos em partes.
+    Devolve (restantes, retirada_ha) como ``subtrair_precedentes``.
+    """
+    pecas = np.array(pecas, dtype=object)
+    restantes = pecas.copy()
+    retirada = np.zeros(len(pecas), dtype=float)
+    gr = np.array([g for g in np.atleast_1d(np.array(grandes, dtype=object)) if g is not None and not g.is_empty], dtype=object)
+    partes = shapely.get_parts(gr) if len(gr) else np.array([], dtype=object)
+    vivas = np.array([g is not None and not g.is_empty for g in pecas], dtype=bool)
+    if len(partes) == 0 or not vivas.any():
+        return restantes, retirada
+    idx = np.where(vivas)[0]
+    tree = STRtree(partes)
+    ii, jj = tree.query(pecas[idx], predicate="intersects")
+    ii = idx[ii]
+    if len(ii) == 0:
+        return restantes, retirada
+    tocadas = np.unique(ii)      # a área só é recalculada nas peças que tocam alguma parte (a geodésica é a etapa cara)
+    ju = np.unique(jj)
+    grandes_ju = partes[ju][shapely.get_num_coordinates(partes[ju]) >= min_vertices_preparar]
+    if len(grandes_ju):
+        shapely.prepare(grandes_ju)
+    try:
+        cont = shapely.contains(partes[jj], pecas[ii])
+    except Exception:
+        cont = np.array([_contem_seguro(partes[j], pecas[i]) for i, j in zip(ii, jj)], dtype=bool)
+    dentro = np.unique(ii[cont])
+    restantes[dentro] = None
+    m = ~np.isin(ii, dentro)
+    ii, jj = ii[m], jj[m]
+    ordem = np.argsort(ii, kind="stable")
+    ii, jj = ii[ordem], jj[ordem]
+    if len(ii):
+        inicios = np.flatnonzero(np.r_[True, ii[1:] != ii[:-1]])
+        fins = np.r_[inicios[1:], len(ii)]
+        e = 1e-6
+        for a, b in zip(inicios, fins):
+            i = ii[a]
+            g = pecas[i]
+            x0, y0, x1, y1 = g.bounds
+            cortes = [shapely.clip_by_rect(partes[j], x0 - e, y0 - e, x1 + e, y1 + e) for j in jj[a:b]]
+            u = uniao_robusta([c for c in cortes if c is not None and not c.is_empty])
+            if u is not None:
+                restantes[i] = so_poligonos(diferenca_robusta([g], [u])[0])
+    a_bruta = area_ha(pecas[tocadas])
+    a_rest = area_ha([g for g in restantes[tocadas]])
+    retirada[tocadas] = np.where(a_bruta - a_rest < MIN_INTER_HA, 0.0, a_bruta - a_rest)
+    for k in np.where(a_rest < MIN_INTER_HA)[0]:
+        restantes[tocadas[k]] = None
+    return restantes, retirada
+
+
+def _contem_seguro(parte, peca) -> bool:
+    try:
+        return bool(shapely.contains(parte, peca))
+    except Exception:
+        return False        # conservador: a peça segue para o recorte exato (reparar uma parte gigante leva minutos)
 
 
 def aplicar_hierarquia(uf: str) -> None:

@@ -55,6 +55,11 @@ def para_multi(g):
     return shapely.MultiPolygon([g]) if g.geom_type == "Polygon" else g
 
 
+def para_multi_lista(geoms) -> np.ndarray:
+    """``para_multi`` em lote (vetor de objetos shapely)."""
+    return np.array([para_multi(g) for g in geoms], dtype=object)
+
+
 def reparar(geoms):
     """Devolve (geometrias reparadas 2D só-polígono, vetor booleano 'era inválida')."""
     arr = np.array(shapely.force_2d(np.array(geoms, dtype=object)), dtype=object)

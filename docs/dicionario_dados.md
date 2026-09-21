@@ -121,3 +121,22 @@ Em `Computo_Planaveg_2026\Insumos` e `Computo_Planaveg_2026\Tier5_OR` (ver `docs
 Colunas próprias de `P2_OR_poligonos`, para cada versão `<p>` (`vs22q`, `vs2224q`): `<p>_sobreposta_recooperar_ha`, `<p>_sobreposta_sicar_regularizacao_ha`,
 `<p>_sobreposta_outros_projetos_ha`, `<p>_sobreposta_classes_anteriores_ha`, `<p>_n_precedentes_sobrepostos`, `<p>_sobreposta_na_classe_ha`,
 `<p>_area_liquida_ha`, `<p>_uf_principal`, `<p>_ufs`, `<p>_bioma_principal`, `<p>_biomas`, `<p>_area_fora_ibge_ha`.
+
+## Saídas das classes 6 a 8 (TI, UC e Manguezal: governança)
+
+Em `Computo_Planaveg_2026\Insumos`, `Tier6_TI`, `Tier7_UC` e `Tier8_Manguezal` (ver `docs/tier6_8_governanca_publica.md`). Entradas: os cruzamentos
+VS x território já calculados, um por versão da VS (`Cruzamento_Espacial_Vegetacao_Secundaria\VS-Terras_Indigenas`, `VS-Unidades_Conservacao` e `VS-Pro_Manguezal`;
+uma peça por território x feição de VS qualificada, com `vs_id`, `vs_ano`, `vs_bioma`, `area_ha`) e, para as APAs, o CAR total dissolvido por UF
+(`Analise_Territorial_CAR-INCRA_dissolvido\CAR_Brasil_Maio2026_Imovel_Area_Total_dissolvido_UF.gpkg`).
+
+| Arquivo | Conteúdo |
+|---|---|
+| `Insumos\IN_TI_FUNAI20260507.gpkg`, `IN_UC_CNUC20260507.gpkg`, `IN_Manguezal_ProManguezal20260508.gpkg` | Peças elegíveis, uma camada por versão da VS (`vs22q_pedacos`, `vs2224q_pedacos`), com `id_peca` (`TI-<versão>-<n>`, `UC-...`, `MG-...`), os atributos do território, `area_ha_arq` (área gravada no cruzamento), `area_original_ha` (VS no território antes de tirar a área privada das APAs) e `area_ha_geo` (VS no território, área geodésica). UC: `apa` (verdadeiro nas APAs) e `area_privada_ha` (VS da APA que está em imóvel do CAR) |
+| `Insumos\IN_<...>_resumo.csv` / `_excluidos.csv` | Nº de peças, de territórios e VS, por versão e grupo; o que ficou fora e por quê (TI em estudo ou encaminhada RI; zona de amortecimento; APA inteira em imóvel do CAR) |
+| `Tier6_TI\P1_TI_FUNAI20260507.gpkg` (idem `Tier7_UC\P1_UC_CNUC20260507.gpkg`, `Tier8_Manguezal\P1_Manguezal_ProManguezal20260508.gpkg`) | `P1_<classe>_vs22q` e `P1_<classe>_vs2224q`: partes líquidas (polígonos simples), uma por peça x UF x bioma, disjuntas entre si e das classes de maior prioridade, com os atributos do território, `categoria`, `uf`, `bioma` (IBGE) e `area_ha`; `P1_<classe>_pecas_vs22q` e `_vs2224q`: tabela sem geometria com uma linha por peça |
+| `T6_resumo.csv`, `T6_resumo_uf_bioma.csv`, `T6_conferencias.csv`, `T6_acumulado_classes_1_3_4_5_6.csv` (e `T7_...`, `T8_...`) | Resumo por versão e categoria; área líquida por versão, UF, bioma e categoria; conferências; área líquida acumulada das classes já processadas |
+
+Colunas da tabela de peças, além dos atributos do território: `categoria` (TI: fase; UC: grupo, com "- APA (área pública)" nas APAs; Manguezal: "Manguezal"), `area_vs_original_ha`,
+`area_vs_no_territorio_ha`, `sobreposta_<classe>_ha` para cada classe anterior (`recooperar`, `sicar_regularizacao`, `outros_projetos`, `or` e, na UC e no Manguezal, `ti` e `uc`),
+`sobreposta_classes_anteriores_ha`, `n_precedentes_na_classe`, `sobreposta_na_classe_ha` e `area_liquida_ha`. Na camada de partes, o campo `uf` da UC vira `uf_cnuc`
+(os nomes dos estados, como no CNUC) porque `uf` fica reservado à UF do IBGE.

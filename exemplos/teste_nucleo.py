@@ -360,6 +360,160 @@ def teste_config_vs_camadas():
     assert all(v24[b] == "2022" for b in ("Caatinga", "Mata_Atlantica", "Pampa", "Pantanal")) and len(v24) == 6
 
 
+def _box(x0, y0, x1, y1, seg=0.01):
+    import shapely
+    return shapely.segmentize(shapely.box(x0, y0, x1, y1), seg)
+
+
+def teste_subtrair_grandes():
+    """Polígono grande (como o CAR dissolvido de uma UF): peça dentro sai inteira, na borda perde só a parte coberta, no buraco e fora fica."""
+    import numpy as np
+    import shapely
+    from computo.geometria import area_ha
+    from computo.hierarquia import subtrair_grandes
+    grande = shapely.difference(_box(0, 0, 2, 2, 0.01), _box(1.0, 1.0, 1.4, 1.4, 0.01))          # quadrado 2x2 com buraco (>200 vértices)
+    dentro, borda, no_buraco, fora = _box(0.2, 0.2, 0.3, 0.3), _box(1.9, 0.5, 2.1, 0.6), _box(1.1, 1.1, 1.2, 1.2), _box(3, 3, 3.1, 3.1)
+    pecas = np.array([dentro, borda, no_buraco, fora], dtype=object)
+    rest, ret = subtrair_grandes(pecas, [grande])
+    a = area_ha(pecas)
+    assert rest[0] is None and abs(ret[0] - a[0]) < 1e-6 * a[0]
+    esperado = area_ha([shapely.intersection(borda, grande)])[0]
+    assert abs(ret[1] - esperado) < 1e-6 * esperado and abs(area_ha([rest[1]])[0] - (a[1] - esperado)) < 1e-6 * a[1]
+    assert ret[2] == 0 and ret[3] == 0 and rest[2] is not None and rest[3] is not None
+    # sem partes ou sem peças: devolve o que recebeu
+    r2, t2 = subtrair_grandes(pecas, [])
+    assert t2.sum() == 0 and all(x is y for x, y in zip(r2, pecas))
+    # peças None são ignoradas
+    r3, t3 = subtrair_grandes(np.array([None, dentro], dtype=object), [grande])
+    assert r3[0] is None and t3[0] == 0 and r3[1] is None and t3[1] > 0
+
+
+def teste_celulas_uf_bioma():
+    """Peça inteira numa célula (caminho rápido), peça que cruza a divisa de UF, e peça parcialmente fora dos limites ("FORA")."""
+    import geopandas as gpd
+    import numpy as np
+    from computo.geometria import area_ha
+    from computo.territorio import CelulasUFBioma, Limites
+    uf = gpd.GeoDataFrame({"sigla": ["AA", "BB"]}, geometry=[_box(0, 0, 1, 2), _box(1, 0, 2, 2)], crs=4674)
+    bio = gpd.GeoDataFrame({"nome": ["Norte", "Sul"]}, geometry=[_box(0, 1, 2, 2), _box(0, 0, 2, 1)], crs=4674)
+    cel = CelulasUFBioma(Limites(uf, "sigla", bio, "nome"))
+    assert len(cel.geoms) == 4
+    pecas = np.array([_box(0.2, 0.2, 0.3, 0.3), _box(0.9, 1.4, 1.1, 1.6), _box(1.9, 0.5, 2.1, 0.6), None], dtype=object)
+    fr = cel.fragmentar(pecas)
+    a = area_ha([p for p in pecas[:3]])
+    for i in range(3):
+        assert abs(fr[fr["i"] == i]["geometry"].pipe(lambda s: area_ha(list(s))).sum() - a[i]) < 1e-6 * a[i]      # a soma dos fragmentos é a peça
+    assert list(fr[fr["i"] == 0][["uf", "bioma"]].itertuples(index=False, name=None)) == [("AA", "Sul")]
+    assert sorted(fr[fr["i"] == 1]["uf"]) == ["AA", "BB"] and set(fr[fr["i"] == 1]["bioma"]) == {"Norte"}
+    fora = fr[(fr["i"] == 2) & (fr["uf"] == "FORA")]
+    assert len(fora) == 1 and abs(area_ha(list(fora["geometry"])).sum() - a[2] / 2) < 1e-3 * a[2]                  # metade da peça está fora
+    assert 3 not in set(fr["i"])                                                                                    # None não gera linha
+
+
+def teste_elegibilidade_e_prioridades_governanca():
+    import pandas as pd
+    import config_computo as c
+    from computo import governanca as gov
+    ti = pd.DataFrame({"fase_ti": ["Regularizada", "Em Estudo", "Delimitada", "Homologada", "Encaminhada RI", "Declarada"],
+                       "terrai_cod": [5, 1, 2, 3, 4, 6], "vs_id": [1, 2, 3, 4, 5, 6]})
+    m, motivo = gov.elegiveis_ti(ti, c.ELEGIBILIDADE_TI)
+    assert m.tolist() == [True, False, True, True, False, True] and motivo[1] != "" and motivo[0] == ""
+    r = gov.prioridade_ti(ti, c.ELEGIBILIDADE_TI)
+    assert len(set(r)) == len(ti) and r[0] < r[3] < r[5] < r[2]                         # regularizada > homologada > declarada > delimitada
+    uc = pd.DataFrame({"limite": ["uc", "za", "UC ", "uc", "uc", "uc"],
+                       "grupo": ["Uso Sustentável", "Proteção Integral", "Proteção Integral", "Uso Sustentável", "Uso Sustentável", "Uso Sustentável"],
+                       "categoria": ["Floresta Nacional", "Parque Nacional", "Parque Nacional", "Área de Proteção Ambiental", "Reserva Extrativista", "Floresta Nacional"],
+                       "esfera": ["Federal", "Federal", "Estadual", "Federal", "Estadual", "Estadual"],
+                       "cria_ano": ["1990", "1990", "2000", "1980", "1985", "1970"], "cd_cnuc": list("abcdef"), "vs_id": range(6)})
+    m, _ = gov.elegiveis_uc(uc, c.ELEGIBILIDADE_UC)
+    assert m.tolist() == [True, False, True, True, True, True]                            # 'za' fora; espaço e maiúscula toleradas
+    assert gov.eh_apa(uc, c.ELEGIBILIDADE_UC).tolist() == [False, False, False, True, False, False]
+    r = gov.prioridade_uc(uc, c.ELEGIBILIDADE_UC)
+    assert len(set(r)) == len(uc)
+    assert r[2] < r[0] < r[3]          # proteção integral primeiro; dentro do uso sustentável, fora da APA antes da APA
+    assert r[0] < r[4] and r[5] > r[0] and r[3] > r[4]    # federal antes de estadual; a APA (mesmo federal) depois das demais
+    mg = pd.DataFrame({"Id": [9, 3, 3], "vs_id": [1, 5, 2]})
+    r = gov.prioridade_manguezal(mg)
+    assert len(set(r)) == 3 and r[2] < r[1] < r[0]
+
+
+def teste_config_camada1():
+    import config_computo as c
+    from computo import anteriores
+    assert c.precedentes("TI") == ["RECOOPERAR", "SICAR_REGULARIZACAO", "OUTROS_PROJETOS", "OR"]
+    assert c.precedentes("UC")[-1] == "TI" and c.precedentes("MANGUEZAL")[-2:] == ["TI", "UC"]
+    assert c.CAR_CATEGORIAS_PRECEDENCIA == ["Habilitados", "Analisados", "Nao_Analisados"]
+    for k in ("ti", "uc", "manguezal"):
+        assert set(c.FONTES[k]["cruzamento"]) == set(c.VS_VERSOES) and c.FONTES[k]["camada_cruzamento"]
+    assert c.FONTES["car_total"]["campo_uf"] == "uf"
+    assert c.ELEGIBILIDADE_TI["fases"][0] == "Regularizada" and "Em Estudo" not in c.ELEGIBILIDADE_TI["fases"]
+    assert c.ELEGIBILIDADE_UC["limite"] == "uc"
+    arq = anteriores.arquivos_classes("vs22q")
+    assert arq["TI"][1] == "P1_TI_vs22q" and arq["UC"][1] == "P1_UC_vs22q" and arq["MANGUEZAL"][1] == "P1_MANGUEZAL_vs22q"
+    assert arq["TI"][0].parent.name == "Tier6_TI" and arq["UC"][0].parent.name == "Tier7_UC" and arq["MANGUEZAL"][0].parent.name == "Tier8_Manguezal"
+    assert "TI" not in anteriores.arquivos_classes()          # as classes 4 a 8 dependem da versão da VS
+
+
+def teste_apa_area_publica():
+    """APA menos o CAR total por UF: o que está em imóvel é privado; a UF sem feição é ignorada."""
+    import tempfile
+    from pathlib import Path
+    import geopandas as gpd
+    import numpy as np
+    import shapely
+    import config_computo as c
+    from computo import governanca as gov
+    from computo.geometria import area_ha
+    d = Path(tempfile.mkdtemp())
+    car = gpd.GeoDataFrame({"uf": ["AC", "AM"]}, geometry=[shapely.MultiPolygon([_box(0, 0, 1, 1), _box(5, 5, 6, 6)]), _box(10, 10, 11, 11)], crs=4674)
+    car.to_file(d / "car.gpkg", layer="CAR", driver="GPKG")
+    ant = (c.RAIZ, dict(c.FONTES["car_total"]), list(c.UFS))
+    try:
+        c.RAIZ = d
+        c.FONTES["car_total"] = {"arquivo": "car.gpkg", "camada": "CAR", "campo_uf": "uf"}
+        c.UFS[:] = ["AC", "AM", "RO"]
+        apa = np.array([_box(0.5, 0.5, 1.5, 0.9), _box(5.2, 5.2, 5.4, 5.4), _box(20, 20, 20.1, 20.1), _box(10.5, 10.5, 11.5, 10.6)], dtype=object)
+        pub, ret = gov.apa_area_publica(apa)
+    finally:
+        c.RAIZ, c.FONTES["car_total"] = ant[0], ant[1]
+        c.UFS[:] = ant[2]
+    a = area_ha(apa)
+    assert abs(ret[0] - a[0] / 2) < 1e-3 * a[0] and abs(area_ha([pub[0]])[0] - a[0] / 2) < 1e-3 * a[0]      # metade da APA está no imóvel
+    assert pub[1] is None and abs(ret[1] - a[1]) < 1e-6 * a[1]                                                # inteira no imóvel: sai
+    assert ret[2] == 0 and pub[2] is not None                                                                 # fora do CAR: pública
+    assert abs(ret[3] - a[3] / 2) < 1e-3 * a[3]
+
+
+def teste_sobrepoe_interiores():
+    """O passo 3 só conta sobreposição de interiores: peças que se tocam na divisa (fragmentos de UF x bioma) não contam."""
+    import importlib
+    import numpy as np
+    m = importlib.import_module("3_camada1_vs_governanca")
+    a = np.array([_box(0, 0, 1, 1), _box(1, 0, 2, 1), _box(0.5, 0, 1.5, 1)], dtype=object)
+    ii, jj, ar = m._sobrepoe(a, a)
+    pares = {(int(i), int(j)) for i, j in zip(ii, jj) if i < j}
+    assert pares == {(0, 2), (1, 2)} and (ar[[(i, j) in {(0, 2), (2, 0), (1, 2), (2, 1)} for i, j in zip(ii, jj)]] > 0).all()
+    assert m.CLASSES_IMPLEMENTADAS == ["TI", "UC", "MANGUEZAL"] and set(m._CLASSES) == set(m.CLASSES_IMPLEMENTADAS)
+
+
+def teste_liquido_independente():
+    """Conferência por componente conexo = (união das peças - união das classes anteriores), sem dupla contagem entre peças."""
+    import importlib
+    import numpy as np
+    import shapely
+    from computo.geometria import area_ha
+    m = importlib.import_module("3_camada1_vs_governanca")
+    pecas = np.array([_box(0, 0, 2, 2), _box(1, 0, 3, 2), _box(10, 10, 11, 11), None], dtype=object)      # as duas primeiras se sobrepõem
+    prec = np.array([_box(1.5, 0, 2.5, 2), _box(10, 10, 10.5, 11), _box(50, 50, 51, 51)], dtype=object)
+    a_U, a_liq = m.liquido_independente(pecas, prec)
+    U = shapely.union_all(list(pecas[:3])); P = shapely.union_all(list(prec))
+    assert abs(a_U - area_ha([U])[0]) < 1e-6 * a_U
+    esperado = area_ha([shapely.difference(U, P)])[0]
+    assert abs(a_liq - esperado) < 1e-6 * esperado and a_liq < a_U
+    assert m.liquido_independente(pecas, np.array([], dtype=object))[1] == a_U               # sem classes anteriores: a união inteira
+    assert m.liquido_independente(np.array([None], dtype=object), prec) == (0.0, 0.0)
+
+
 if __name__ == "__main__":
     testes = [v for k, v in sorted(globals().items()) if k.startswith("teste_")]
     for t in testes:

@@ -15,7 +15,7 @@ Implementado na v0.4.0: classe 4, OUTROS_PROJETOS (por ora só os embargos PANGI
     Só a VS DENTRO do embargo entra (decisão de 20/09/2026). Subtrai as classes 1 e 3 e resolve a sobreposição entre embargos
     (o mais antigo fica com a área). A geometria da classe depende da versão da VS (vs22q, vs2224q): há um conjunto de
     polígonos líquidos por versão.
-Implementado na v0.5.0: classe 5, OR (Observatório da Restauração, ORR 2025; 4 polígonos dissolvidos por bioma).
+Implementado na v0.5.0 (mantido na v0.6.0): classe 5, OR (Observatório da Restauração, ORR 2025; 4 polígonos dissolvidos por bioma).
     Área TOTAL dos polígonos (com ou sem VS, como as classes 1 e 3); subtrai as classes 1, 3 e 4, esta na versão da VS em cálculo
     (o líquido da classe 5 tem um conjunto por versão). VS como atributo.
 
@@ -66,6 +66,7 @@ import shapely
 from shapely.strtree import STRtree
 
 import config_computo as cfg
+from computo import anteriores
 from computo import embargos as emb
 from computo import geometria as geo
 from computo import io_dados as io
@@ -75,23 +76,20 @@ from computo.vs import PedacosVS, area_vs   # noqa: F401
 
 CLASSES_IMPLEMENTADAS = ["RECOOPERAR", "CAR_REGULARIZACAO", "OUTROS_PROJETOS", "OR"]
 ARQ_IN = "IN_Recooperar_2026.gpkg"
-ARQ_OUT = "P2_Recooperar_2026.gpkg"
+ARQ_OUT = anteriores.ARQ_OUT_RECOOPERAR
 ARQ_IN_CAR = "IN_CAR_Regularizacao_Junho26.gpkg"
 ARQ_VS_CAR = "IN_CAR_Regularizacao_Junho26_VS.gpkg"
-ARQ_OUT_CAR = "P2_CAR_Regularizacao_Junho26.gpkg"
+ARQ_OUT_CAR = anteriores.ARQ_OUT_CAR_REG
 ARQ_IN_EMB = "IN_Embargos_PANGIA_20260920.gpkg"
 ARQ_VS_EMB = "IN_Embargos_PANGIA_20260920_VS.gpkg"
-ARQ_OUT_EMB = "P2_Outros_Projetos_PANGIA_20260920.gpkg"
+ARQ_OUT_EMB = anteriores.ARQ_OUT_EMB
 ARQ_IN_OR = "IN_OR_2025.gpkg"
 ARQ_VS_OR = "IN_OR_2025_VS.gpkg"
-ARQ_OUT_OR = "P2_OR_2025.gpkg"
+ARQ_OUT_OR = anteriores.ARQ_OUT_OR
 
 
 def _carregar_limites():
-    e, b = cfg.FONTES["estados"], cfg.FONTES["biomas"]
-    uf = io.ler_camada(cfg.RAIZ / e["arquivo"], e["camada"])
-    bio = io.ler_camada(cfg.RAIZ / b["arquivo"], b["camada"])
-    return Limites(uf, e["campo_uf"], bio, b["campo"])
+    return anteriores.carregar_limites()
 
 
 def _carregar_vs():
@@ -238,28 +236,15 @@ def _pedacos_car():
 
 
 def _arquivos_classes(versao=None):
-    """Arquivo e camada de cada classe já processada. A classe 4 tem um conjunto líquido por versão da VS."""
-    arq = {"RECOOPERAR": (cfg.SAIDA_TIER1 / ARQ_OUT, "P2_RECOOPERAR"),
-           "SICAR_REGULARIZACAO": (cfg.SAIDA_TIER3 / ARQ_OUT_CAR, "P2_CAR_REGULARIZACAO")}
-    if versao:
-        arq["OUTROS_PROJETOS"] = (cfg.SAIDA_TIER4 / ARQ_OUT_EMB, f"P2_OUTROS_PROJETOS_{versao}")
-    return arq
+    """Arquivo e camada de cada classe já processada (ver computo/anteriores.py). A classe 4 e as seguintes têm um conjunto por versão da VS."""
+    return anteriores.arquivos_classes(versao)
 
 
 def _geoms_por_classe(codigo, versao=None):
     """Lista de (classe, geometrias líquidas disjuntas) das classes ativas de maior prioridade já processadas.
 
-    ``versao`` (vs22q | vs2224q) é necessária quando entre as anteriores há classe cuja geometria depende da versão da VS (a 4)."""
-    arquivos = _arquivos_classes(versao)
-    saida = []
-    for c in cfg.precedentes(codigo):
-        if c not in arquivos:
-            raise NotImplementedError(f"classe anterior {c} ainda não processada (ou falta a versão da VS) - necessária para subtrair")
-        arq, camada = arquivos[c]
-        if not arq.exists():
-            raise FileNotFoundError(f"Não encontrei {arq}. Rode a classe {c} antes.")
-        saida.append((c, np.array(io.ler_camada(arq, camada).geometry.values, dtype=object)))
-    return saida
+    ``versao`` (vs22q | vs2224q) é necessária quando entre as anteriores há classe cuja geometria depende da versão da VS (a 4 em diante)."""
+    return anteriores.geoms_por_classe(codigo, versao)
 
 
 def _geoms_classes_anteriores(codigo):

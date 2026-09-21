@@ -47,7 +47,7 @@ def crs_da_camada(arquivo, camada) -> CRS:
     return CRS.from_wkt(definicao)
 
 
-def ler_camada(caminho, camada=None, colunas=None, com_fid=False):
+def ler_camada(caminho, camada=None, colunas=None, com_fid=False, where=None):
     """GeoDataFrame em EPSG:4674, 2D. ``fid_as_index=False``: o FID original não é reaproveitado.
 
     ``com_fid=True`` grava o FID da camada de origem na coluna ``fid_orig`` (rastreabilidade quando o arquivo
@@ -55,7 +55,7 @@ def ler_camada(caminho, camada=None, colunas=None, com_fid=False):
     caminho = Path(caminho)
     if camada is None:
         camada = pyogrio.list_layers(str(caminho))[0][0]
-    g = pyogrio.read_dataframe(str(caminho), layer=camada, columns=colunas, fid_as_index=com_fid)
+    g = pyogrio.read_dataframe(str(caminho), layer=camada, columns=colunas, fid_as_index=com_fid, where=where)
     if com_fid:
         g["fid_orig"] = g.index.astype("int64")
         g = g.reset_index(drop=True)

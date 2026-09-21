@@ -55,7 +55,7 @@ Recuperação da Vegetação Nativa.
 - **SICAR:** área a recuperar dos imóveis "Analisado, em regularização ambiental", pois há instrumento
   jurídico de compromisso com a recuperação.
 - **Observatório da Restauração:** polígonos no formato "público".
-  *No cômputo 2026 (v0.5.0):* usado o arquivo ORR 2025 como entregue (4 polígonos, um por bioma, já dissolvidos; sem Pampa e Pantanal),
+  *No cômputo 2026:* usado o arquivo ORR 2025 como entregue (4 polígonos, um por bioma, já dissolvidos; sem Pampa e Pantanal),
   pela **área total dos polígonos**, com ou sem VS (decisão de 21/09/2026); a VS fica como atributo. Ver `docs/tier5_or.md`.
 - **Outros projetos:** MMA e demais órgãos, com polígono, extensão e ano de implantação (Anexo 3).
 
@@ -94,5 +94,8 @@ O cruzamento da VS com APP/RL/AUR dos imóveis selecionados vem do repositório
 - Embargos PANGIA (20/09/2026): mantidos só os 50.674 polígonos reais; removidos 13.810 registros sem
   geometria e 26.843 pontos (microcírculos), com extensão corrigida. Entram na classe 4 (Outros projetos) só pela
   interseção com a VS qualificada (`docs/tier4_outros_projetos.md`).
+- Classes de governança (6 TI, 7 UC, 8 Manguezal; `docs/tier6_8_governanca_publica.md`): a área da classe é a VS qualificada dentro do território, por versão da VS.
+  TI: fases delimitada, declarada, homologada e regularizada. UC: só o limite da UC (a zona de amortecimento não é UC); nas APAs entra só a área pública
+  (APA menos os imóveis do CAR). Manguezal: toda a VS do ProManguezal.
 - Áreas calculadas de forma geodésica (elipsoide GRS80), em EPSG:4674, como no restante do projeto.
 - Itens ainda pendentes de decisão estão em `PENDENCIAS` no arquivo `config_computo.py`.

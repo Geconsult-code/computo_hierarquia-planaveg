@@ -3,7 +3,8 @@
 Objetivo: aplica a elegibilidade de cada fonte, padroniza CRS (EPSG:4674) e campos, repara geometrias
 e gera o insumo elegível de cada classe (prefixo IN_), sempre com os POLÍGONOS INTEIROS.
 
-Implementado nesta versão (v0.5.0): RECOOPERAR (IBAMA 2026, Tier-1), CAR_REGULARIZACAO (classe 3), EMBARGOS_PANGIA (classe 4) e OR (classe 5).
+Implementado nesta versão (v0.6.0): RECOOPERAR (IBAMA 2026, Tier-1), CAR_REGULARIZACAO (classe 3), EMBARGOS_PANGIA (classe 4), OR (classe 5),
+TI (classe 6), UC (classe 7) e MANGUEZAL (classe 8).
     RECOOPERAR
     - Elegibilidade por categoria (config_computo.ELEGIBILIDADE_RECOOPERAR).
     - Campos harmonizados, sem dados pessoais (config_computo.CAMPOS_RECOOPERAR / COLUNAS_PESSOAIS_RECOOPERAR).
@@ -22,7 +23,12 @@ Implementado nesta versão (v0.5.0): RECOOPERAR (IBAMA 2026, Tier-1), CAR_REGULA
     - ORR 2025 (4 feições dissolvidas por bioma, EPSG projetado Albers no arquivo; convertido para EPSG:4674), AREA TOTAL dos polígonos,
       com ou sem VS. Como o arquivo não traz VS, ela é cruzada aqui com as camadas brutas do INPE (VS_CAMADAS): as partes dos polígonos
       são agrupadas em células de CELULA_VS_OR_GRAUS (uma leitura de VS por célula e camada); atributos vs22q_*/vs2224q_* e peças em arquivo próprio.
-Ainda não implementado: ICMBio (adiado), TI, UC, ProManguezal.
+    TI, UC e MANGUEZAL (classes 6 a 8, Governança: a área da classe é a VS qualificada DENTRO do território)
+    - Peças "VS x território" dos cruzamentos já feitos (FONTES["ti"|"uc"|"manguezal"]["cruzamento"], uma por versão da VS), reparadas.
+    - TI: só as fases delimitada, declarada, homologada e regularizada (ELEGIBILIDADE_TI). UC: só limite = "uc" (a zona de amortecimento,
+      limite = "za", sai). APAs: só a área pública = APA menos os imóveis do CAR (CAR total dissolvido por UF, FONTES["car_total"]):
+      a parte privada retirada fica registrada e a VS nela conta, se for o caso, como APP, AUR ou RL. Manguezal: toda a VS do ProManguezal.
+Ainda não implementado: ICMBio (adiado).
 
 Entradas: FONTES["recooperar"]["arquivo"] (Projetos_com_VegSec\\IBAMA_Projetos_Recooperar_2026_com_VegSec.gpkg);
           FONTES["sicar_regularizacao"]["arquivo"] e as camadas de VS (Vegetacao_Secundaria_INPE).
@@ -39,9 +45,12 @@ Saídas (em config_computo.SAIDA_INSUMOS):
     IN_OR_2025.gpkg                          camada IN_OR (4 polígonos inteiros, atributos de VS)
     IN_OR_2025_VS.gpkg                       peças VS x ORR (vs22q_pedacos, vs2224q_pedacos)
     IN_OR_2025_resumo.csv / _excluidos.csv
+    IN_TI_FUNAI20260507.gpkg, IN_UC_CNUC20260507.gpkg, IN_Manguezal_ProManguezal20260508.gpkg
+                                             peças elegíveis por versão (camadas vs22q_pedacos e vs2224q_pedacos)
+    IN_<TI|UC|Manguezal>_..._resumo.csv / _excluidos.csv
     _log_passo1.txt
 
-Execução:  python 1_preparar_insumos.py [recooperar] [car_regularizacao] [embargos_pangia] [or]   (sem argumento: todas)
+Execução:  python 1_preparar_insumos.py [recooperar] [car_regularizacao] [embargos_pangia] [or] [ti] [uc] [manguezal]   (sem argumento: todas)
 """
 from __future__ import annotations
 
@@ -54,14 +63,18 @@ import config_computo as cfg
 from computo import elegibilidade as el
 from computo import embargos as emb
 from computo import geometria as geo
+from computo import governanca as gov
 from computo import io_dados as io
 from computo import vs as vsm
 
-FONTES_IMPLEMENTADAS = ["recooperar", "car_regularizacao", "embargos_pangia", "or"]
+FONTES_IMPLEMENTADAS = ["recooperar", "car_regularizacao", "embargos_pangia", "or", "ti", "uc", "manguezal"]
 NOME_ARQ = "IN_Recooperar_2026"
 NOME_ARQ_CAR = "IN_CAR_Regularizacao_Junho26"
 NOME_ARQ_EMB = "IN_Embargos_PANGIA_20260920"
 NOME_ARQ_OR = "IN_OR_2025"
+NOME_ARQ_TI = "IN_TI_FUNAI20260507"
+NOME_ARQ_UC = "IN_UC_CNUC20260507"
+NOME_ARQ_MANGUEZAL = "IN_Manguezal_ProManguezal20260508"
 
 
 def _col(g, nome):
@@ -458,6 +471,110 @@ def preparar_or(log):
     return ele, ped
 
 
+# ---------------------------------------------------------------------------
+# Classes 6 a 8 (Governança): TI, UC e ProManguezal
+# ---------------------------------------------------------------------------
+_TERRITORIOS = {
+    "ti": dict(nome=NOME_ARQ_TI, prefixo="TI", rotulo="Terras Indígenas (FUNAI 07/05/2026)",
+               colunas=["terrai_cod", "terrai_nom", "etnia_nome", "uf_sigla", "fase_ti", "vs_id", "vs_ano", "vs_bioma", "area_ha"],
+               grupo=["fase_ti"], id_terr="terrai_cod"),
+    "uc": dict(nome=NOME_ARQ_UC, prefixo="UC", rotulo="Unidades de Conservação (CNUC 07/05/2026)",
+               colunas=["cd_cnuc", "uc_id", "nome_uc", "grupo", "categoria", "esfera", "uf", "cria_ano", "limite", "vs_id", "vs_ano", "vs_bioma", "area_ha"],
+               grupo=["grupo", "categoria"], id_terr="cd_cnuc"),
+    "manguezal": dict(nome=NOME_ARQ_MANGUEZAL, prefixo="MG", rotulo="ProManguezal (IBAMA 08/05/2026)",
+                      colunas=["Id", "vs_id", "vs_ano", "vs_bioma", "area_ha"], grupo=[], id_terr=None),   # Id vem zerado no ProManguezal
+}
+
+
+def _fechar_versao(chave, T, regras, p, d, excluidos, resumo, arq_out, primeira, log):
+    """Última etapa de uma versão da VS: identificador da peça, conferência com o cruzamento, gravação e resumos."""
+    import geopandas as gpd
+
+    d["id_peca"] = [f"{T['prefixo']}-{p}-{n:07d}" for n in range(1, len(d) + 1)]
+    # conferência com a área gravada no cruzamento (o cruzamento e o recálculo geodésico devem coincidir)
+    ok = d["area_ha_arq"].notna() & (d["area_original_ha"] > 0)
+    dif = float((d.loc[ok, "area_original_ha"] - d.loc[ok, "area_ha_arq"]).abs().max()) if ok.any() else 0.0
+    log(f"  {p}: eleitas {len(d):,} peças, {d['area_ha_geo'].sum():,.1f} ha (VS dentro do território); dif. máx. de área x arquivo {dif:.4f} ha")
+    gdf = gpd.GeoDataFrame(d.drop(columns=["geometry"]), geometry=geo.para_multi_lista(d["geometry"].values), crs=f"EPSG:{cfg.CRS_TRABALHO}")
+    io.gravar_camada(gdf, arq_out, f"{p}_pedacos", primeira=primeira)
+    grp = T["grupo"] or []
+    resumo.append({"versao": p, "grupo": "TOTAL", "n_pecas": len(d), "n_territorios": d[T["id_terr"]].nunique() if T["id_terr"] else None,
+                   "vs_arquivo_ha": float(d["area_original_ha"].sum()), "vs_elegivel_ha": float(d["area_ha_geo"].sum())})
+    for k, sub in (d.groupby(grp) if grp else []):
+        k = k if isinstance(k, tuple) else (k,)
+        resumo.append({"versao": p, "grupo": " | ".join(map(str, k)), "n_pecas": len(sub), "n_territorios": sub[T["id_terr"]].nunique() if T["id_terr"] else None,
+                       "vs_arquivo_ha": float(sub["area_original_ha"].sum()), "vs_elegivel_ha": float(sub["area_ha_geo"].sum())})
+    if chave == "uc":
+        apa_d = d[d["apa"]]
+        resumo.append({"versao": p, "grupo": "APA (área pública)", "n_pecas": len(apa_d), "n_territorios": apa_d["cd_cnuc"].nunique(),
+                       "vs_arquivo_ha": float(apa_d["area_original_ha"].sum()), "vs_elegivel_ha": float(apa_d["area_ha_geo"].sum()),
+                       "area_privada_retirada_ha": float(apa_d["area_privada_ha"].sum())})
+
+
+def preparar_territorio(chave, log):
+    """Insumo das classes 6 a 8: peças "VS x território" elegíveis, por versão da VS.
+
+    Fase 1: lê o cruzamento de cada versão e aplica a elegibilidade. Fase 2 (só UC): tira das APAs a área privada, lendo o CAR total
+    UMA vez por UF para as duas versões (é a etapa mais pesada). Fase 3: grava."""
+    T = _TERRITORIOS[chave]
+    fonte = cfg.FONTES[chave]
+    regras = {"ti": cfg.ELEGIBILIDADE_TI, "uc": cfg.ELEGIBILIDADE_UC, "manguezal": cfg.ELEGIBILIDADE_MANGUEZAL}[chave]
+    cfg.SAIDA_INSUMOS.mkdir(parents=True, exist_ok=True)
+    arq_out = cfg.SAIDA_INSUMOS / f"{T['nome']}.gpkg"
+    log(f"{T['rotulo']}: peças VS x território de cada versão da VS")
+    resumo, excluidos, dados = [], [], {}
+    for p in cfg.VS_VERSOES:
+        caminho = cfg.RAIZ / fonte["cruzamento"][p]
+        d, info = gov.ler_pedacos(caminho, fonte["camada_cruzamento"], T["colunas"], regras["area_min_ha"])
+        log(f"--- {p} ---  lidas {info['n_lidas']:,} peças ({info['n_reparadas']} geometrias reparadas; {info['n_vazias']} vazias; {info['n_micro']} micro)")
+        d["area_original_ha"] = d["area_ha_geo"]
+        if chave == "ti":
+            eleg, motivo = gov.elegiveis_ti(d, regras)
+        elif chave == "uc":
+            eleg, motivo = gov.elegiveis_uc(d, regras)
+        else:
+            eleg, motivo = np.ones(len(d), dtype=bool), np.array([""] * len(d), dtype=object)
+        fora = d[~eleg].assign(motivo=motivo[~eleg])
+        for m, sub in fora.groupby("motivo"):
+            excluidos.append({"versao": p, "motivo": m, "n_pecas": len(sub), "area_ha": float(sub["area_ha_geo"].sum())})
+            log(f"  fora: {m}: {len(sub):,} peças, {sub['area_ha_geo'].sum():,.1f} ha")
+        d = d[eleg].reset_index(drop=True)
+        if chave == "uc":
+            d["apa"] = gov.eh_apa(d, regras)
+            d["area_privada_ha"] = 0.0
+        dados[p] = d
+
+    if chave == "uc":
+        # APAs: só a área pública (APA menos o CAR total); as duas versões juntas, para ler cada UF uma vez
+        ia = {p: np.where(dados[p]["apa"].to_numpy())[0] for p in dados}
+        juntas = np.concatenate([dados[p]["geometry"].values[ia[p]] for p in dados])
+        log(f"APAs: {len(juntas):,} peças nas duas versões; subtraindo o CAR total (área privada)")
+        pub, ret = gov.apa_area_publica(juntas, log=log)
+        ini = 0
+        for p in dados:
+            d, k = dados[p], len(ia[p])
+            d.loc[d.index[ia[p]], "geometry"] = pd.Series(list(pub[ini:ini + k]), index=d.index[ia[p]], dtype=object)
+            d.loc[d.index[ia[p]], "area_privada_ha"] = ret[ini:ini + k]
+            ini += k
+            d["area_ha_geo"] = geo.area_ha(d["geometry"].values)
+            apa = d["apa"].to_numpy()
+            log(f"  {p}: APAs {d.loc[apa, 'area_original_ha'].sum():,.1f} ha de VS; {ret[ini - k:ini].sum():,.1f} ha privados (CAR) retirados; "
+                f"área pública {d.loc[apa, 'area_ha_geo'].sum():,.1f} ha")
+            vazias = np.array([g is None or g.is_empty for g in d["geometry"]]) | (d["area_ha_geo"].to_numpy() <= regras["area_min_ha"])
+            if vazias.any():
+                sub = d[vazias]
+                excluidos.append({"versao": p, "motivo": "APA inteira dentro de imóveis do CAR (área privada)", "n_pecas": len(sub),
+                                  "area_ha": float(sub["area_original_ha"].sum())})
+                log(f"  {p}: fora: APA inteira dentro de imóveis do CAR: {len(sub):,} peças, {sub['area_original_ha'].sum():,.1f} ha")
+            dados[p] = d[~vazias].reset_index(drop=True)
+
+    for k, p in enumerate(dados):
+        _fechar_versao(chave, T, regras, p, dados[p], excluidos, resumo, arq_out, k == 0, log)
+    pd.DataFrame(resumo).to_csv(cfg.SAIDA_INSUMOS / f"{T['nome']}_resumo.csv", index=False, encoding="utf-8-sig")
+    pd.DataFrame(excluidos, columns=["versao", "motivo", "n_pecas", "area_ha"]).to_csv(cfg.SAIDA_INSUMOS / f"{T['nome']}_excluidos.csv", index=False, encoding="utf-8-sig")
+    log(f"gravado: {arq_out}")
+
+
 def main(argv=None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     pedidas = [a.lower() for a in argv] or FONTES_IMPLEMENTADAS
@@ -480,6 +597,9 @@ def main(argv=None) -> int:
         preparar_embargos_pangia(log)
     if "or" in pedidas:
         preparar_or(log)
+    for chave in ("ti", "uc", "manguezal"):
+        if chave in pedidas:
+            preparar_territorio(chave, log)
     log("fim")
     return 0
 

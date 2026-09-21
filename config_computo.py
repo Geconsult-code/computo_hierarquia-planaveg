@@ -25,6 +25,9 @@ SAIDA_TIER1 = SAIDA / "Tier1_Recooperar"        # passo 2 (classe 1): P2_RECOOPE
 SAIDA_TIER3 = SAIDA / "Tier3_CAR_Regularizacao" # passo 2 (classe 3, SICAR-regularização); a classe 2 (MonitoRAD) está desativada
 SAIDA_TIER4 = SAIDA / "Tier4_Outros_Projetos"   # passo 2 (classe 4, Outros projetos: por ora só embargos PANGIA x VS)
 SAIDA_TIER5 = SAIDA / "Tier5_OR"                # passo 2 (classe 5, Observatório da Restauração)
+SAIDA_TIER6 = SAIDA / "Tier6_TI"                # passo 3 (classe 6, VS em Terras Indígenas)
+SAIDA_TIER7 = SAIDA / "Tier7_UC"                # passo 3 (classe 7, VS em Unidades de Conservação; APAs: área pública)
+SAIDA_TIER8 = SAIDA / "Tier8_Manguezal"         # passo 3 (classe 8, VS em manguezais do ProManguezal)
 
 # ---------------------------------------------------------------------------
 # Parâmetros gerais
@@ -88,9 +91,36 @@ FONTES = {
     "or": {"arquivo": "ORR_Observatorio_Restauracao_2025_com_area.gpkg", "camada": "Observatorio_da_Restauracao_2025"},   # uso confirmado em 21/09/2026
     "monitorad": None,   # NÃO ENTRA no cômputo 2026 (dados ainda não recebidos)
     # --- Camada 1 (Governança) ---
-    "ti": {"arquivo": "Terras_Indigenas_FUNAI20260507.gpkg"},
-    "uc": {"arquivo": "Unidades_Conservacao_CNUC20260507.gpkg"},
-    "manguezal": {"arquivo": "Pro-Manguezal_IBAMA20260508.gpkg"},
+    # Classes 6 a 8: entram as peças "VS qualificada x território" dos cruzamentos já calculados (uma peça por território x feição de VS).
+    "ti": {
+        "arquivo": "Terras_Indigenas_FUNAI20260507.gpkg",
+        "cruzamento": {
+            "vs22q": "Cruzamento_Espacial_Vegetacao_Secundaria/VS-Terras_Indigenas/Terras_Indigenas_FUNAI20260507_x_VegSec_qualificado.gpkg",
+            "vs2224q": "Cruzamento_Espacial_Vegetacao_Secundaria/VS-Terras_Indigenas/Terras_Indigenas_FUNAI20260507_x_VegSec_2022-2024_qualificado.gpkg",
+        },
+        "camada_cruzamento": "Terras_Indigenas_FUNAI20260507_vegsec",
+    },
+    "uc": {
+        "arquivo": "Unidades_Conservacao_CNUC20260507.gpkg",
+        "cruzamento": {
+            "vs22q": "Cruzamento_Espacial_Vegetacao_Secundaria/VS-Unidades_Conservacao/Unidades_Conservacao_CNUC20260507_x_VegSec_qualificado.gpkg",
+            "vs2224q": "Cruzamento_Espacial_Vegetacao_Secundaria/VS-Unidades_Conservacao/Unidades_Conservacao_CNUC20260507_x_VegSec_2022-2024_qualificado.gpkg",
+        },
+        "camada_cruzamento": "Unidades_Conservacao_CNUC20260507_vegsec",
+    },
+    "manguezal": {
+        "arquivo": "Pro-Manguezal_IBAMA20260508.gpkg",
+        "cruzamento": {
+            "vs22q": "Cruzamento_Espacial_Vegetacao_Secundaria/VS-Pro_Manguezal/Pro-Manguezal_IBAMA20260508_x_VegSec_qualificado.gpkg",
+            "vs2224q": "Cruzamento_Espacial_Vegetacao_Secundaria/VS-Pro_Manguezal/Pro-Manguezal_IBAMA20260508_x_VegSec_2022-2024_qualificado.gpkg",
+        },
+        "camada_cruzamento": "Pro_Manguezal_IBAMA20260508_vegsec",
+    },
+    # CAR total (todos os imóveis cadastrados, sem cancelados) dissolvido por UF: 1 feição por UF. Serve para tirar a parte privada das APAs.
+    "car_total": {
+        "arquivo": "Analise_Territorial_CAR-INCRA_dissolvido/CAR_Brasil_Maio2026_Imovel_Area_Total_dissolvido_UF.gpkg",
+        "camada": "CAR_BRASIL_Area_Total_dissolvido_UF", "campo_uf": "uf",
+    },
     "car_selecionados_dir": "CAR_Maio2026_Imoveis_Selecionados",   # <UF>_CAR_Imoveis_Selecionados_<categoria>.gpkg
     # --- Apoio ---
     "assentamentos": {"arquivo": "Assentamentos_Rurais_INCRA20260610.gpkg"},
@@ -177,7 +207,6 @@ CAMPOS_RECOOPERAR = {
 }
 # Campos do Recooperar que NÃO seguem para o cômputo (dados pessoais, LGPD) nem para o dashboard:
 COLUNAS_PESSOAIS_RECOOPERAR = ["administra", "cpf_cnpj_a", "cpf_cnpj_e", "editor_alt", "editor_cad", "numeropess"]
-ELEGIBILIDADE_TI_FASES = ["Delimitada", "Declarada", "Homologada", "Regularizada"]  # conferir valores reais de fase_ti
 CAR_CONDICOES_SICAR_REGULARIZACAO = ["Analisado, em regularização ambiental (Lei nº 12.651/2012)"]
 
 # ---------------------------------------------------------------------------
@@ -204,12 +233,12 @@ CAMPOS_CAR_REG = {"cod_tema": "cod_tema", "nom_tema": "nom_tema", "cod_imovel": 
 # Classe 4 - Outros projetos (por ora: embargos PANGIA; ICMBio adiado). A área da classe é a VS DENTRO do embargo.
 # ---------------------------------------------------------------------------
 # Decidido pelo usuário: embargos PANGIA entram como "Outros projetos" só pela interseção com a VS qualificada
-# (duas versões), nunca pela extensão total. Adotado (a confirmar, ver docs/tier4_outros_projetos.md):
+# (duas versões), nunca pela extensão total. E1 a E4 confirmadas pelo usuário em 21/09/2026 (ver docs/tier4_outros_projetos.md):
 #  E1 o arquivo de embargos não tem campo de situação/status: entram todos os 50.674 polígonos; o filtro é ter VS;
 #  E2 sobreposição entre embargos: a área fica com o embargo MAIS ANTIGO (dat_embarg), depois o de menor FID;
 #  E3 a geometria da classe difere entre as versões da VS (a VS 2022-2024 substitui Amazônia e Cerrado);
 #  E4 nenhum filtro pela data do embargo: a VS entra mesmo em embargos posteriores ao ano da VS (~20% da área líquida da vs22q
-#     está em embargos de 2023 em diante). Um filtro (ex.: embargo até o ano da VS) é decisão do usuário.
+#     está em embargos de 2023 em diante). Decisão do usuário (21/09/2026): NÃO filtrar por data.
 PRECEDENCIA_EMBARGO_PANGIA = "data do embargo (mais antigo primeiro), depois FID"
 NOME_EMBARGO_PANGIA = "Embargo PANGIA (IBAMA) - VS dentro do embargo"
 # Campos do embargo que seguem para o cômputo: nome novo -> campo de origem.
@@ -232,6 +261,30 @@ ELEGIBILIDADE_EMBARGO_PANGIA = {"area_min_ha": 1e-6}   # peça de VS com área <
 ELEGIBILIDADE_OR = {"hierarquia": "ORR", "area_min_ha": 1e-6}
 NOME_OR = "Observatório da Restauração (ORR 2025, formato público)"
 CELULA_VS_OR_GRAUS = 0.25    # agrupa as partes em células de 0,25 grau para ler a VS (uma leitura por célula)
+
+# ---------------------------------------------------------------------------
+# Classes 6 a 8 - Governança (TI, UC, Manguezal): a área da classe é a VS qualificada DENTRO do território
+# ---------------------------------------------------------------------------
+# TI: só as fases do relatório (seção 4.1.1): delimitada, declarada, homologada e regularizada. Ficam de fora "Em Estudo" e
+#     "Encaminhada RI". Sobreposição entre TIs: a fase mais avançada fica com a área (regularizada > homologada > declarada > delimitada),
+#     depois o menor código da TI. [T1 adotada, a confirmar]
+ELEGIBILIDADE_TI = {
+    "fases": ["Regularizada", "Homologada", "Declarada", "Delimitada"],   # ordem = precedência entre TIs sobrepostas
+    "area_min_ha": 1e-6,
+}
+# UC: todas as categorias do CNUC (proteção integral e uso sustentável). O cruzamento traz também a ZONA DE AMORTECIMENTO
+#     (limite = "za"), que não é UC e fica de fora; só entra limite = "uc". APAs: só a área pública, que é a APA menos os imóveis
+#     do CAR (decisão de 21/09/2026); a parte privada segue o regime dos imóveis (classes APP, AUR e RL).
+#     Sobreposição entre UCs: proteção integral > uso sustentável; fora da APA > APA; esfera federal > estadual > municipal; a mais
+#     antiga (ano de criação); depois o código CNUC. [U1 adotada, a confirmar]
+ELEGIBILIDADE_UC = {
+    "limite": "uc",
+    "categoria_apa": "Área de Proteção Ambiental",
+    "grupos": ["Proteção Integral", "Uso Sustentável"],                    # ordem = precedência
+    "esferas": ["Federal", "Estadual", "Municipal"],                       # ordem = precedência
+    "area_min_ha": 1e-6,
+}
+ELEGIBILIDADE_MANGUEZAL = {"area_min_ha": 1e-6}   # APP em toda a extensão (Art. 4º, VII): toda a VS do ProManguezal entra
 
 # VS por camada (arquivo, camada, bioma em BIOMAS_VS). Todas em SIRGAS 2000 (a VS 2022 da Mata Atlântica vem
 # sem CRS definido no arquivo; é tratada como EPSG:4674, como nos cruzamentos anteriores).
@@ -301,13 +354,18 @@ def precedentes(codigo: str) -> list[str]:
 # Decisões confirmadas em 21/09/2026 (SICAR-regularização, classe 3): D0 o arquivo (AC, MT, PB, RJ e SP; 2.391 imóveis) é o conjunto
 #   nacional completo; D5 entram todos os status do cadastro (AT, PE, SU); D6 precedência APP > RL averbada > RL aprovada não
 #   averbada > RL proposta; D7 a área fora dos limites do IBGE fica rotulada 'FORA' (14,6 ha, polígono CARREG-RL-000924), sem UF.
-#   Classe 4 (21/09/2026): embargos PANGIA20260920 entram só pela interseção com a VS qualificada (decisão de 20/09/2026); E1 a E4 adotadas, a confirmar.
+#   Classe 4 (21/09/2026): embargos PANGIA20260920 entram só pela interseção com a VS qualificada (decisão de 20/09/2026); E1 a E4 CONFIRMADAS em 21/09/2026 (todos os embargos com VS; embargo mais antigo fica com a área sobreposta; polígonos por versão; sem filtro pela data do embargo).
 #   Classe 5 (21/09/2026): usar o ORR 2025 (4 polígonos dissolvidos por bioma), pela ÁREA TOTAL dos polígonos, independente do cruzamento com a VS.
+# Classes 9 a 11 (CAR: APP, AUR, RL): as três categorias de imóveis do CAR selecionados entram com precedência entre si
+# Habilitados > Analisados > Não analisados (decisão do usuário em 21/09/2026); dentro de cada imóvel, APP > AUR > RL.
+CAR_CATEGORIAS_PRECEDENCIA = ["Habilitados", "Analisados", "Nao_Analisados"]
+# APAs (decisão de 21/09/2026): área pública = APA menos os imóveis cadastrados no CAR (CAR total dissolvido por UF, sem cancelados).
+APA_AREA_PUBLICA = "APA menos CAR total (CAR_Brasil_Maio2026_Imovel_Area_Total_dissolvido_UF)"
 PENDENCIAS = [
-    "Classe 4 (embargos PANGIA x VS): confirmar E1 (todos os embargos, sem filtro de status), E2 (embargo mais antigo fica com a área sobreposta), E3 (geometria por versão da VS) e E4 (sem filtro pela data do embargo).",
     "ICMBio (adiado em 21/09/2026): quais camadas são projetos; ver análise de atributos e sobreposição (Analise_Atributos_e_Sobreposicao_Projetos_IBAMA_ICMBio.xlsx).",
     "OR: usado o ORR 2025 como entregue (4 feições dissolvidas por bioma, sem Pampa e Pantanal); se sair versão mais nova ou com Pampa/Pantanal, trocar FONTES['or'].",
     "Florestas Públicas Não Destinadas (CNFP): fonte do dado.",
     "CAR Regularização: arquivo 'Junho26' com camadas 'Julho26' (2.398 imóveis) - confirmar.",
-    "APAs: definição da área pública (sugestão: APA menos imóveis privados do CAR).",
+    "Classe 6 (TI), adotado a confirmar: a sobreposição entre TIs fica com a fase mais avançada (regularizada > homologada > declarada > delimitada) e, em empate, com o menor código da TI.",
+    "Classe 7 (UC), adotado a confirmar: a sobreposição entre UCs fica com proteção integral > uso sustentável; fora da APA > APA; federal > estadual > municipal; a mais antiga; menor código CNUC.",
 ]
