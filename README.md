@@ -5,14 +5,14 @@ reporte da meta nacional do Planaveg 2025-2028, seguindo o Relatório Técnico *
 Monitoramento Geoespacial e Reporte de Áreas em Processo de Recuperação da Vegetação Nativa*
 (MMA / Conaveg, setembro de 2026).
 
-> **Status: v0.6.0 - classes 1 (Recooperar 2026), 3 (SICAR-regularização), 4 (Outros projetos: embargos PANGIA), 5 (OR),
-> 6 (TI), 7 (UC) e 8 (Manguezal) implementadas.** Passos 1 e 2 funcionam para as classes de projetos (1, 3 e 5: área completa dos
-> polígonos, com os atributos de VS na tabela; classe 4: só a VS dentro do embargo) e o passo 3 para as classes de governança 6 a 8
-> (a área da classe é a VS qualificada dentro do território; APAs só na área pública). Cada classe subtrai as anteriores. Pendentes: o ICMBio
-> (parte da classe 4), as classes 9 a 11 (APP, AUR e RL do CAR, por UF, com a precedência Habilitados > Analisados > Não analisados)
-> e os passos 4 a 7. Regras do Recooperar, da classe 3 e da classe 4 (E1 a E4) confirmadas em 21/09/2026. Decisões abertas: `PENDENCIAS`,
-> em `config_computo.py`. Método e saídas: `docs/tier1_recooperar.md`, `docs/tier3_car_regularizacao.md`, `docs/tier4_outros_projetos.md`,
-> `docs/tier5_or.md` e `docs/tier6_8_governanca_publica.md`.
+> **Status: v0.7.0 - classes 1 (Recooperar 2026), 3 (SICAR-regularização), 4 (Outros projetos: embargos PANGIA), 5 (OR),
+> 6 (TI), 7 (UC), 8 (Manguezal), 9 (APP), 10 (AUR) e 11 (RL) implementadas.** Passos 1 e 2 funcionam para as classes de projetos (1, 3 e 5: área
+> completa dos polígonos, com os atributos de VS na tabela; classe 4: só a VS dentro do embargo), o passo 3 para as classes de governança 6 a 8
+> (a área da classe é a VS qualificada dentro do território; APAs só na área pública) e o passo 3b para as classes do CAR 9 a 11 (VS qualificada em
+> APP, AUR e RL dos imóveis selecionados, por UF, com a precedência Habilitados > Analisados > Não analisados). Cada classe subtrai as anteriores.
+> Pendentes: o ICMBio (parte da classe 4) e os passos 4 a 7. Regras do Recooperar, da classe 3, da classe 4 (E1 a E4), da TI (T1) e da UC (U1) confirmadas
+> em 21/09/2026. Decisões abertas: `PENDENCIAS`, em `config_computo.py`. Método e saídas: `docs/tier1_recooperar.md`, `docs/tier3_car_regularizacao.md`,
+> `docs/tier4_outros_projetos.md`, `docs/tier5_or.md`, `docs/tier6_8_governanca_publica.md` e `docs/tier9_11_car.md`.
 
 ## Onde este repositório se encaixa
 
@@ -40,7 +40,8 @@ Monitoramento Geoespacial e Reporte de Áreas em Processo de Recuperação da Ve
 |---|---|---|
 | 1 | `1_preparar_insumos.py` | Aplica elegibilidade, padroniza CRS e campos, repara geometrias (**implementado: Recooperar, CAR-regularização, embargos PANGIA, OR, TI, UC e Manguezal**) |
 | 2 | `2_camada2_projetos.py` | Hierarquia entre os projetos e atribuição de UF e bioma (**implementado: classes 1 Recooperar, 3 CAR-regularização, 4 Outros projetos/PANGIA e 5 OR**; demais pendentes) |
-| 3 | `3_camada1_vs_governanca.py` | Hierarquia da Camada 1 (**implementado: classes 6 TI, 7 UC e 8 Manguezal**; APP, AUR e RL pendentes) |
+| 3 | `3_camada1_vs_governanca.py` | Hierarquia da Camada 1, territórios (**implementado: classes 6 TI, 7 UC e 8 Manguezal**) |
+| 3b | `3b_camada1_car.py` | Hierarquia da Camada 1, CAR (**implementado: classes 9 APP, 10 AUR e 11 RL**; por UF, com retomada) |
 | 4 | `4_aplicar_hierarquia.py` | Aplica a ordem completa do Anexo 1 e remove Florestas Públicas Não Destinadas |
 | 5 | `5_desagregacao_arranjos.py` | Classifica nos arranjos da Figura 4, por UF e bioma |
 | 6 | `6_totais_e_relatorio.py` | Tabelas de área e comparação com a meta (12 Mha) |
@@ -65,7 +66,7 @@ computo_hierarquia-planaveg/
 
 ```
 conda activate geo
-python exemplos/teste_nucleo.py        # 31 testes sintéticos
+python exemplos/teste_nucleo.py        # 38 testes sintéticos
 python 1_preparar_insumos.py           # -> Computo_Planaveg_2026\Insumos (Recooperar, CAR-regularização, embargos PANGIA e OR, com a VS)
 python 2_camada2_projetos.py           # -> ...\Tier1_Recooperar, ...\Tier3_CAR_Regularizacao, ...\Tier4_Outros_Projetos e ...\Tier5_OR
 # ou por classe:  python 1_preparar_insumos.py or ;  python 2_camada2_projetos.py or
@@ -86,6 +87,22 @@ python 3_camada1_vs_governanca.py              # -> ...\Tier6_TI, ...\Tier7_UC e
 Exigem as classes 1, 3, 4 e 5 já processadas (`2_camada2_projetos.py`); a classe 7 subtrai também a 6, e a 8 subtrai a 6 e a 7. O CAR total dissolvido por UF
 (`Analise_Territorial_CAR-INCRA_dissolvido`) só é usado para tirar a área privada das APAs; o de MG chega a 550 MB (34 milhões de vértices) e pede uns 5 GB de memória; o passo 3 da UC chega a ~5 GB. Ver `docs/tier6_8_governanca_publica.md`.
 
+## Executar as classes 9, 10 e 11 (APP, AUR e RL do CAR)
+
+```
+python exemplos/teste_nucleo.py                          # 38 testes
+python 3b_camada1_car.py AC DF SE                        # validação em UFs pequenas (vs22q e vs2224q); ~5 min
+python 3b_camada1_car.py                                 # as 27 UFs, nas duas versões da VS (horas); retoma de onde parou
+python 3b_camada1_car.py PA MT --versao=vs22q            # UFs e/ou versão à escolha; --conferencia completa|leve; --refazer
+python 3b_camada1_car.py --consolidar                    # só a consolidação (roda sozinha quando todas as UFs das duas versões estão prontas)
+```
+
+Exige as classes 1 a 8 já processadas (`2_camada2_projetos.py` e `3_camada1_vs_governanca.py`). Processa por UF e versão; cada uma concluída deixa um marcador em
+`Tier9_APP\_por_uf`, e o script retoma dali. Para ganhar tempo, abra dois ou três terminais com UFs diferentes (`python 3b_camada1_car.py PA MT` e
+`python 3b_camada1_car.py GO MG SP`); a consolidação (GeoPackages `P1_APP_CAR_Maio2026.gpkg`, `P1_AUR_...`, `P1_RL_...` em `Tier9_APP`, `Tier10_AUR` e `Tier11_RL`, resumos,
+conferências e acumulados) roda quando a última UF termina, ou com `--consolidar`. As UFs grandes (PA, MT, GO, MG: 400 a 600 mil peças) são as mais lentas e pedem mais memória;
+acima de 200 mil peças a conferência por união independente só roda com `--conferencia completa`. Ver `docs/tier9_11_car.md`.
+
 ## Instalação
 
 Recomendado conda-forge (no Windows, `pip` costuma quebrar GDAL/fiona):
@@ -105,4 +122,4 @@ Ficam em `GEODATABASE\GEOPACKAGE` (caminho em `config_computo.py`). O inventári
 ## Licença e citação
 
 MIT (ver `LICENSE`). Para citar: Braga Meira, M. (2026). *Cômputo Planaveg 2026 - hierarquia de
-sobreposições* (v0.6.0) [software]. Geoconsult Ltda. Ver `CITATION.cff`.
+sobreposições* (v0.7.0) [software]. Geoconsult Ltda. Ver `CITATION.cff`.

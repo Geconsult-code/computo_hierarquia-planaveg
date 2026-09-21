@@ -28,6 +28,9 @@ SAIDA_TIER5 = SAIDA / "Tier5_OR"                # passo 2 (classe 5, Observatór
 SAIDA_TIER6 = SAIDA / "Tier6_TI"                # passo 3 (classe 6, VS em Terras Indígenas)
 SAIDA_TIER7 = SAIDA / "Tier7_UC"                # passo 3 (classe 7, VS em Unidades de Conservação; APAs: área pública)
 SAIDA_TIER8 = SAIDA / "Tier8_Manguezal"         # passo 3 (classe 8, VS em manguezais do ProManguezal)
+SAIDA_TIER9 = SAIDA / "Tier9_APP"               # passo 3b (classe 9, VS em APP dos imóveis do CAR)
+SAIDA_TIER10 = SAIDA / "Tier10_AUR"             # passo 3b (classe 10, VS em AUR dos imóveis do CAR)
+SAIDA_TIER11 = SAIDA / "Tier11_RL"              # passo 3b (classe 11, VS em RL dos imóveis do CAR)
 
 # ---------------------------------------------------------------------------
 # Parâmetros gerais
@@ -122,6 +125,15 @@ FONTES = {
         "camada": "CAR_BRASIL_Area_Total_dissolvido_UF", "campo_uf": "uf",
     },
     "car_selecionados_dir": "CAR_Maio2026_Imoveis_Selecionados",   # <UF>_CAR_Imoveis_Selecionados_<categoria>.gpkg
+    # Cruzamento VS x APP/AUR/RL dos imóveis selecionados (um arquivo por categoria; camadas VS_<APP|AUR|RL>_<categoria>; campos
+    # uf, cod_imovel, tipo, bioma, ano, des_condic, area_ha). Cada UF ocupa um bloco contínuo de FIDs.
+    "car_cruzamentos": {
+        "pasta": "Cruzamento_Espacial_Vegetacao_Secundaria/VS-Cadastro_Ambiental_Rural",
+        "2022q": "VS_2022_Imoveis_Selecionados_{categoria}_Qualificado.gpkg",
+        "2024": "VS_2024_Imoveis_Selecionados_{categoria}.gpkg",          # só Amazônia e Cerrado (VS 2024 qualificada)
+        "camada": "VS_{classe}_{categoria}",
+        "biomas_2024": ["Amazonia", "Cerrado"],   # vs2224q = 2022q nos demais biomas + 2024 nestes dois
+    },
     # --- Apoio ---
     "assentamentos": {"arquivo": "Assentamentos_Rurais_INCRA20260610.gpkg"},
     "quilombolas": {"arquivo": "Territorios_Quilombolas_INCRA20260610.gpkg"},
@@ -359,6 +371,10 @@ def precedentes(codigo: str) -> list[str]:
 # Classes 9 a 11 (CAR: APP, AUR, RL): as três categorias de imóveis do CAR selecionados entram com precedência entre si
 # Habilitados > Analisados > Não analisados (decisão do usuário em 21/09/2026); dentro de cada imóvel, APP > AUR > RL.
 CAR_CATEGORIAS_PRECEDENCIA = ["Habilitados", "Analisados", "Nao_Analisados"]
+# Implementação (v0.7.0): a classe manda e a categoria desempata. Em cada classe (APP, AUR, RL) a sobreposição entre imóveis fica com
+# Habilitados > Analisados > Não analisados e, na mesma categoria, com o menor cod_imovel; a APP subtrai antes da AUR e esta antes da RL,
+# qualquer que seja a categoria. As peças do cruzamento se sobrepõem dentro do mesmo imóvel (temas de APP sobrepostos, duplicatas):
+# antes da precedência, as peças de cada imóvel (categoria, cod_imovel, bioma da VS) são unidas.
 # APAs (decisão de 21/09/2026): área pública = APA menos os imóveis cadastrados no CAR (CAR total dissolvido por UF, sem cancelados).
 APA_AREA_PUBLICA = "APA menos CAR total (CAR_Brasil_Maio2026_Imovel_Area_Total_dissolvido_UF)"
 PENDENCIAS = [
@@ -366,6 +382,10 @@ PENDENCIAS = [
     "OR: usado o ORR 2025 como entregue (4 feições dissolvidas por bioma, sem Pampa e Pantanal); se sair versão mais nova ou com Pampa/Pantanal, trocar FONTES['or'].",
     "Florestas Públicas Não Destinadas (CNFP): fonte do dado.",
     "CAR Regularização: arquivo 'Junho26' com camadas 'Julho26' (2.398 imóveis) - confirmar.",
-    "Classe 6 (TI), adotado a confirmar: a sobreposição entre TIs fica com a fase mais avançada (regularizada > homologada > declarada > delimitada) e, em empate, com o menor código da TI.",
-    "Classe 7 (UC), adotado a confirmar: a sobreposição entre UCs fica com proteção integral > uso sustentável; fora da APA > APA; federal > estadual > municipal; a mais antiga; menor código CNUC.",
+    # T1 e U1 confirmadas pelo usuário em 21/09/2026:
+    #   T1 sobreposição entre TIs: fase mais avançada (regularizada > homologada > declarada > delimitada), depois o menor código da TI;
+    #   U1 sobreposição entre UCs: proteção integral > uso sustentável; fora da APA > APA; federal > estadual > municipal; a mais antiga; menor código CNUC.
+    "Classes 9 a 11 (CAR), adotado a confirmar (C1): a classe manda e a categoria desempata (APP de um imóvel Não analisado vence a RL de um Habilitado).",
+    "Classes 9 a 11 (CAR), adotado a confirmar (C2): a sobreposição entre imóveis da mesma categoria fica com o menor cod_imovel (o cruzamento não traz a data de cadastro).",
+    "Classes 9 a 11 (CAR), achado: as peças de APP do cruzamento se sobrepõem dentro do mesmo imóvel (temas de APP sobrepostos e duplicatas): a soma de area_ha das peças de APP do cruzamento é várias vezes a área da união (3,3 vezes no AC); RL e AUR quase não se sobrepõem.",
 ]

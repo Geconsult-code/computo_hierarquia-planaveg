@@ -140,3 +140,17 @@ Colunas da tabela de peças, além dos atributos do território: `categoria` (TI
 `area_vs_no_territorio_ha`, `sobreposta_<classe>_ha` para cada classe anterior (`recooperar`, `sicar_regularizacao`, `outros_projetos`, `or` e, na UC e no Manguezal, `ti` e `uc`),
 `sobreposta_classes_anteriores_ha`, `n_precedentes_na_classe`, `sobreposta_na_classe_ha` e `area_liquida_ha`. Na camada de partes, o campo `uf` da UC vira `uf_cnuc`
 (os nomes dos estados, como no CNUC) porque `uf` fica reservado à UF do IBGE.
+
+## Saídas das classes 9 a 11 (APP, AUR e RL do CAR: governança)
+
+Em `Computo_Planaveg_2026\Tier9_APP`, `Tier10_AUR` e `Tier11_RL` (ver `docs/tier9_11_car.md`). Entradas: os cruzamentos VS x APP/AUR/RL dos imóveis selecionados
+(`Cruzamento_Espacial_Vegetacao_Secundaria\VS-Cadastro_Ambiental_Rural`), um arquivo por categoria (Habilitados, Analisados, Não analisados) e versão da VS
+(`VS_2022_Imoveis_Selecionados_<categoria>_Qualificado.gpkg` e `VS_2024_Imoveis_Selecionados_<categoria>.gpkg`, a 2024 só com Amazônia e Cerrado), camadas
+`VS_<APP|AUR|RL>_<categoria>` com `uf`, `cod_imovel`, `tipo`, `bioma`, `ano`, `des_condic`, `selecao_final` e `area_ha`. Cada UF ocupa um bloco contínuo de FIDs.
+
+| Arquivo | Conteúdo |
+|---|---|
+| `Tier9_APP\P1_APP_CAR_Maio2026.gpkg` (idem `Tier10_AUR\P1_AUR_CAR_Maio2026.gpkg`, `Tier11_RL\P1_RL_CAR_Maio2026.gpkg`) | `P1_<classe>_vs22q` e `P1_<classe>_vs2224q`: partes líquidas (polígonos simples) por imóvel x UF x bioma, disjuntas entre si e das classes de maior prioridade. Atributos: `classe`, `categoria` (Habilitados, Analisados, Nao_Analisados), `cod_imovel`, `bioma_vs` (bioma da feição de VS, sem acento), `ano` (da VS), `uf_car` (UF do imóvel), `uf` e `bioma` (limites IBGE; "FORA" se sair deles), `area_ha` |
+| `T9_resumo.csv`, `T9_resumo_uf.csv` (idem T10, T11) | Por versão e categoria (e por UF): `n_pecas`, `n_imoveis`, `area_pecas_arquivo_ha` (soma de `area_ha` do cruzamento), `sobreposta_no_imovel_ha` (sobreposição das peças do mesmo imóvel), `area_uniao_imovel_ha`, `sobreposta_<classe>_ha` para cada classe anterior, `sobreposta_na_classe_ha` (entre imóveis) e `area_liquida_ha` |
+| `T9_resumo_uf_bioma.csv`, `T9_conferencias.csv`, `T9_acumulado_classes_1_3_4_5_6_7_8_9.csv` (idem T10, T11) | Área líquida por versão, UF, bioma e categoria; conferências de cada UF; área líquida acumulada das classes já processadas |
+| `Tier9_APP\_por_uf\` | Marcadores de retomada (`ok_<versão>_<UF>.txt`) e tabelas por UF; os GeoPackages por UF são apagados depois da consolidação |

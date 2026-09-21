@@ -10,8 +10,8 @@ Implementado na v0.6.0: classes 6 (TI), 7 (UC) e 8 (MANGUEZAL).
               Sobreposição entre UCs: proteção integral > uso sustentável; fora da APA > APA; federal > estadual > municipal; mais antiga.
     MANGUEZAL ProManguezal (IBAMA 08/05/2026), toda a VS.
     Cada classe subtrai as de maior prioridade já processadas (1, 3, 4, 5 e, para UC e MANGUEZAL, as classes 6 e 7), na versão da VS.
-    Ainda não implementadas: classes 9 a 11 (APP, AUR, RL dos imóveis do CAR; processadas por UF, com a precedência Habilitados >
-    Analisados > Não analisados).
+    As classes 9 a 11 (APP, AUR, RL dos imóveis do CAR; por UF, com a precedência Habilitados > Analisados > Não analisados) estão em
+    3b_camada1_car.py (v0.7.0), que parte das saídas deste passo.
 
 Entradas (passo 1): SAIDA_INSUMOS/IN_TI_FUNAI20260507.gpkg, IN_UC_CNUC20260507.gpkg, IN_Manguezal_ProManguezal20260508.gpkg (camadas
     <versão>_pedacos); classes 1, 3, 4 e 5 (passo 2); IBGE_Limite_Estados e IBGE_Limite_Biomas.
@@ -308,7 +308,7 @@ def main(argv=None) -> int:
     pedidas = [a.upper() for a in argv] or CLASSES_IMPLEMENTADAS
     for c in pedidas:
         if c not in CLASSES_IMPLEMENTADAS:
-            print(f"classe '{c}': ainda não implementada (pendentes: APP, AUR, RL).")
+            print(f"classe '{c}': não é deste script; as classes APP, AUR e RL (CAR) são do passo 3b: python 3b_camada1_car.py")
             return 1
     for codigo in CLASSES_IMPLEMENTADAS:
         if codigo not in pedidas:

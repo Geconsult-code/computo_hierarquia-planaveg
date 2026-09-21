@@ -514,6 +514,136 @@ def teste_liquido_independente():
     assert m.liquido_independente(np.array([None], dtype=object), prec) == (0.0, 0.0)
 
 
+def teste_config_car():
+    """Classes 9 a 11: fontes dos cruzamentos, pastas de saída e ordem das categorias."""
+    c = cfg.FONTES["car_cruzamentos"]
+    assert c["2022q"].format(categoria="Habilitados") == "VS_2022_Imoveis_Selecionados_Habilitados_Qualificado.gpkg"
+    assert c["2024"].format(categoria="Analisados") == "VS_2024_Imoveis_Selecionados_Analisados.gpkg"
+    assert c["camada"].format(classe="APP", categoria="Nao_Analisados") == "VS_APP_Nao_Analisados"
+    assert c["biomas_2024"] == ["Amazonia", "Cerrado"]
+    assert cfg.CAR_CATEGORIAS_PRECEDENCIA == ["Habilitados", "Analisados", "Nao_Analisados"]
+    assert cfg.precedentes("APP") == ["RECOOPERAR", "SICAR_REGULARIZACAO", "OUTROS_PROJETOS", "OR", "TI", "UC", "MANGUEZAL"]
+    assert cfg.precedentes("RL")[-2:] == ["APP", "AUR"]
+    from computo import anteriores, car
+    assert car.CLASSES == ["APP", "AUR", "RL"] and set(anteriores.arquivos_classes("vs22q")) >= {"APP", "AUR", "RL"}
+
+
+def teste_clip_seguro():
+    """Sem falha do GEOS o resultado é o de clip_by_rect; com um anel degenerado devolve algo em vez de lançar erro."""
+    import shapely
+    from computo.geometria import clip_seguro
+    g = _box(0, 0, 2, 2)
+    r = clip_seguro(g, 1, 1, 3, 3)
+    assert r.bounds == (1.0, 1.0, 2.0, 2.0) and abs(r.area - 1.0) < 1e-12          # área planar do recorte 1 x 1
+
+
+def teste_uniao_por_imovel():
+    """Peças duplicadas e sobrepostas do mesmo imóvel viram uma só; imóveis, categorias e biomas diferentes ficam separados."""
+    import numpy as np
+    import pandas as pd
+    import shapely
+    from computo import car
+    from computo.geometria import area_ha
+    pecas = [_box(0, 0, 1, 1), _box(0, 0, 1, 1), _box(0.5, 0, 1.5, 1), _box(5, 5, 6, 6), _box(0.2, 0.2, 0.4, 0.4)]
+    d = pd.DataFrame({"categoria": ["Habilitados"] * 3 + ["Analisados", "Habilitados"], "cod_imovel": ["A", "A", "A", "B", "C"],
+                      "bioma_vs": ["Cerrado"] * 5, "ano": [2022] * 5, "uf_car": ["GO"] * 5, "des_condic": ["x"] * 5,
+                      "geometry": pecas})
+    d["area_ha_geo"] = area_ha(np.array(pecas, dtype=object))
+    d["area_ha_arq"] = d["area_ha_geo"]
+    u, n_vazias, n_corr = car.unir_por_imovel(d)
+    assert len(u) == 3 and n_vazias == 0 and n_corr == 0
+    a = u[u["cod_imovel"] == "A"].iloc[0]
+    esperado = area_ha([_box(0, 0, 1.5, 1)])[0]
+    assert a["n_pecas"] == 3 and abs(area_ha([a["geometry"]])[0] - esperado) < 1e-6 * esperado
+    assert a["area_pecas_geo_ha"] > area_ha([a["geometry"]])[0] * 1.5           # a soma das peças é maior que a união
+    pos = car.ordem_precedencia(u)
+    ordem = list(u["cod_imovel"].iloc[np.argsort(pos)])
+    assert ordem == ["A", "C", "B"]          # Habilitados (A antes de C), depois Analisados (B)
+
+
+def teste_uniao_verificada_cobre_as_pecas():
+    """A união de peças sobrepostas cobre cada peça; uma peça só devolve a própria peça."""
+    import numpy as np
+    import shapely
+    from computo import car
+    from computo.geometria import area_ha
+    P = np.array([_box(0, 0, 1, 1), _box(0.5, 0.5, 1.5, 1.5), _box(0.5, 0.5, 1.5, 1.5), _box(3, 3, 4, 4)], dtype=object)
+    u, n = car.uniao_verificada(P)
+    assert n == 0 and abs(u.area - 2.75) < 1e-9            # 1 + 1 + 1 - 0,25 (planar, em graus2)
+    assert all(shapely.area(shapely.difference(x, u)) < 1e-12 for x in P)
+    u1, n1 = car.uniao_verificada(P[:1])
+    assert u1 is P[0] and n1 == 0
+    assert car.uniao_verificada(np.array([None], dtype=object)) == (None, 0)
+
+
+def teste_sobreposicao_com_grandes():
+    """Sobreposição das partes com polígonos grandes: só interseção real conta; toque na divisa não conta."""
+    import numpy as np
+    from computo import car
+    from computo.geometria import area_ha
+    grande = _box(0, 0, 2, 2, 0.01)
+    partes = np.array([_box(1.5, 0.5, 2.5, 0.6), _box(2, 0, 3, 1), _box(5, 5, 6, 6)], dtype=object)
+    esperado = area_ha([_box(1.5, 0.5, 2.0, 0.6)])[0]
+    assert abs(car.sobreposicao_com_grandes(partes, [grande]) - esperado) < 1e-4 * esperado
+    assert car.sobreposicao_com_grandes(partes, []) == 0.0
+    assert car.sobreposicao_com_grandes(np.array([], dtype=object), [grande]) == 0.0
+
+
+def teste_indice_fids_e_leitura_por_uf(tmp=None):
+    """Índice de FIDs por UF (bloco contínuo) e leitura só do bloco da UF."""
+    import tempfile
+    import geopandas as gpd
+    from pathlib import Path
+    from computo import car
+    tmp = Path(tempfile.mkdtemp())
+    g = gpd.GeoDataFrame({"uf": ["AC"] * 3 + ["GO"] * 2, "cod_imovel": list("abcde")},
+                         geometry=[_box(i, 0, i + 0.5, 0.5) for i in range(5)], crs=4674)
+    arq = tmp / "x.gpkg"
+    g.to_file(arq, layer="VS_APP_Habilitados", driver="GPKG")
+    antigo = cfg.SAIDA_TIER9
+    cfg.SAIDA_TIER9 = tmp / "t9"
+    try:
+        idx = car.indice_fids(arq, "VS_APP_Habilitados")
+        assert idx == {"AC": (1, 3, 3), "GO": (4, 5, 2)}
+        assert car.indice_fids(arq, "VS_APP_Habilitados") == idx           # segunda chamada: do cache em disco
+        assert (cfg.SAIDA_TIER9 / "_indice_fids_car.json").exists()
+    finally:
+        cfg.SAIDA_TIER9 = antigo
+
+
+def teste_processar_classe_car():
+    """Uma classe do CAR: dedupe por imóvel, classe anterior subtraída, precedência entre categorias e conferências todas OK."""
+    import geopandas as gpd
+    import numpy as np
+    import pandas as pd
+    from computo import car
+    from computo.geometria import area_ha
+    from computo.territorio import CelulasUFBioma, Limites
+    uf = gpd.GeoDataFrame({"sigla": ["AA"]}, geometry=[_box(0, 0, 10, 10)], crs=4674)
+    bio = gpd.GeoDataFrame({"nome": ["Norte"]}, geometry=[_box(0, 0, 10, 10)], crs=4674)
+    cel = CelulasUFBioma(Limites(uf, "sigla", bio, "nome"))
+    # imóvel H (Habilitados) com duas peças sobrepostas; imóvel N (Não analisados) sobrepõe H em 1 x 1 e a classe anterior em 1 x 1
+    pecas = [_box(1, 1, 3, 3), _box(2, 1, 4, 3), _box(3, 1, 5, 3)]
+    cats = ["Habilitados", "Habilitados", "Nao_Analisados"]
+    cods = ["H", "H", "N"]
+    d = pd.DataFrame({"categoria": cats, "cod_imovel": cods, "bioma_vs": ["Cerrado"] * 3, "ano": [2022] * 3, "uf_car": ["AA"] * 3,
+                      "des_condic": ["x"] * 3, "classe": ["APP"] * 3, "geometry": pecas})
+    d["area_ha_geo"] = area_ha(np.array(pecas, dtype=object))
+    d["area_ha_arq"] = d["area_ha_geo"]
+    anterior = np.array([_box(4.5, 1, 6, 3)], dtype=object)              # cobre 0,5 x 2 do imóvel N
+    r = car.processar_classe("APP", d, [("TI", anterior)], cel, "teste", conferencia="completa")
+    assert all(c["ok"] for c in r["conferencias"]), [c for c in r["conferencias"] if not c["ok"]]
+    t = r["unidades"].set_index("cod_imovel")
+    a1 = area_ha([_box(1, 1, 3, 3)])[0]
+    assert abs(t.loc["H", "area_liquida_ha"] - area_ha([_box(1, 1, 4, 3)])[0]) < 1e-3 * a1       # H fica com a união das suas duas peças
+    assert abs(t.loc["N", "sobreposta_na_classe_ha"] - area_ha([_box(3, 1, 4, 3)])[0]) < 1e-3 * a1     # a sobreposição fica com Habilitados
+    assert abs(t.loc["N", "sobreposta_ti_ha"] - area_ha([_box(4.5, 1, 5, 3)])[0]) < 1e-3 * a1
+    esperado_n = area_ha([_box(4, 1, 4.5, 3)])[0]
+    assert abs(t.loc["N", "area_liquida_ha"] - esperado_n) < 1e-3 * a1
+    p = r["partes"]
+    assert set(p["uf"]) == {"AA"} and set(p["bioma"]) == {"Norte"} and abs(p["area_ha"].sum() - (t["area_liquida_ha"].sum())) < 1e-3 * a1
+
+
 if __name__ == "__main__":
     testes = [v for k, v in sorted(globals().items()) if k.startswith("teste_")]
     for t in testes:

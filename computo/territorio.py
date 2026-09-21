@@ -11,7 +11,7 @@ import pandas as pd
 import shapely
 from shapely.strtree import STRtree
 
-from .geometria import area_ha, diferenca_robusta, intersecao_robusta, reparar, so_poligonos, uniao_robusta
+from .geometria import area_ha, clip_seguro, diferenca_robusta, intersecao_robusta, reparar, so_poligonos, uniao_robusta
 
 MIN_HA = 1e-6
 
@@ -30,7 +30,7 @@ class Limites:
         e = 1e-6
         saida = []
         for k in tree.query(g, predicate="intersects"):
-            recorte = shapely.clip_by_rect(geoms[k], x0 - e, y0 - e, x1 + e, y1 + e)
+            recorte = clip_seguro(geoms[k], x0 - e, y0 - e, x1 + e, y1 + e)
             if recorte is None or recorte.is_empty:
                 continue
             c = so_poligonos(intersecao_robusta([g], [recorte])[0])
@@ -103,7 +103,7 @@ class CelulasUFBioma:
             for i, j in zip(ii[resto], jj[resto]):
                 g = geoms[i]
                 x0, y0, x1, y1 = g.bounds
-                corte = shapely.clip_by_rect(self.geoms[j], x0 - e, y0 - e, x1 + e, y1 + e)
+                corte = clip_seguro(self.geoms[j], x0 - e, y0 - e, x1 + e, y1 + e)
                 if corte is None or corte.is_empty:
                     continue
                 f = so_poligonos(intersecao_robusta([g], [corte])[0])

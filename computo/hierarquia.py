@@ -14,7 +14,7 @@ import numpy as np
 import shapely
 from shapely.strtree import STRtree
 
-from .geometria import area_ha, diferenca_robusta, intersecao_robusta, so_poligonos, uniao_robusta
+from .geometria import area_ha, clip_seguro, diferenca_robusta, intersecao_robusta, so_poligonos, uniao_robusta
 
 MIN_INTER_HA = 1e-6   # interseção menor que 0,01 m2 é tratada como toque
 
@@ -142,7 +142,7 @@ def subtrair_grandes(pecas, grandes, min_vertices_preparar=200):
             i = ii[a]
             g = pecas[i]
             x0, y0, x1, y1 = g.bounds
-            cortes = [shapely.clip_by_rect(partes[j], x0 - e, y0 - e, x1 + e, y1 + e) for j in jj[a:b]]
+            cortes = [clip_seguro(partes[j], x0 - e, y0 - e, x1 + e, y1 + e) for j in jj[a:b]]
             u = uniao_robusta([c for c in cortes if c is not None and not c.is_empty])
             if u is not None:
                 restantes[i] = so_poligonos(diferenca_robusta([g], [u])[0])

@@ -5,6 +5,7 @@
 - ``area_ha`` / ``area_ha_geodesica``: pyproj.Geod(ellps="GRS80"); mesmo padrão dos outros repositórios.
 - ``intersecao_robusta`` / ``diferenca_robusta``: operações em lote com plano B por par (grid_size).
 - ``coordenada_absurda``: vértice finito porém fora da caixa do Brasil.
+- ``clip_seguro``: ``clip_by_rect`` com plano B para anéis degenerados.
 """
 from __future__ import annotations
 
@@ -47,6 +48,21 @@ def so_poligonos(g):
             return None
         return partes[0] if len(partes) == 1 else shapely.MultiPolygon(partes)
     return None
+
+
+def clip_seguro(g, x0, y0, x1, y1):
+    """``shapely.clip_by_rect`` com plano B: o GEOS às vezes falha ao montar um anel degenerado (IllegalArgumentException: Invalid number of
+    points in LinearRing); nesse caso recorta com a interseção pela caixa (geometria reparada, se preciso). Sem falha, o resultado é o mesmo."""
+    try:
+        return shapely.clip_by_rect(g, x0, y0, x1, y1)
+    except GEOSException:
+        caixa = shapely.box(x0, y0, x1, y1)
+        for a in (g, shapely.make_valid(g)):
+            try:
+                return so_poligonos(shapely.intersection(a, caixa))
+            except GEOSException:
+                continue
+        return None
 
 
 def para_multi(g):
