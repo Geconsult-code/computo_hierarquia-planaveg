@@ -5,10 +5,10 @@ reporte da meta nacional do Planaveg 2025-2028, seguindo o Relatório Técnico *
 Monitoramento Geoespacial e Reporte de Áreas em Processo de Recuperação da Vegetação Nativa*
 (MMA / Conaveg, setembro de 2026).
 
-> **Status: v0.3.0 - classes 1 (Recooperar 2026) e 3 (SICAR-regularização) implementadas.** Passos 1 e 2
+> **Status: v0.3.1 - classes 1 (Recooperar 2026) e 3 (SICAR-regularização) implementadas.** Passos 1 e 2
 > funcionam para essas classes (área completa dos polígonos elegíveis, atributos de VS mantidos na tabela; a
-> classe 3 subtrai a 1). As demais classes e os passos 3 a 7 seguem como esqueleto. Regras do Recooperar e
-> precedência confirmadas em 21/09/2026; decisões abertas das demais classes estão em `PENDENCIAS`, no arquivo
+> classe 3 subtrai a 1). As demais classes e os passos 3 a 7 seguem como esqueleto. Regras do Recooperar e da
+> classe 3 confirmadas em 21/09/2026; decisões abertas das demais classes estão em `PENDENCIAS`, no arquivo
 > `config_computo.py`. Método e saídas: `docs/tier1_recooperar.md` e `docs/tier3_car_regularizacao.md`.
 
 ## Onde este repositório se encaixa
@@ -90,4 +90,4 @@ Ficam em `GEODATABASE\GEOPACKAGE` (caminho em `config_computo.py`). O inventári
 ## Licença e citação
 
 MIT (ver `LICENSE`). Para citar: Braga Meira, M. (2026). *Cômputo Planaveg 2026 - hierarquia de
-sobreposições* (v0.3.0) [software]. Geoconsult Ltda. Ver `CITATION.cff`.
+sobreposições* (v0.3.1) [software]. Geoconsult Ltda. Ver `CITATION.cff`.

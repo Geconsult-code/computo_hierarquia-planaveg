@@ -16,14 +16,14 @@ a sobreposição dentro da própria classe. A VS que cai nas áreas fica como at
 | APPs, RL, AUR, Vegetação Nativa | - | não entram: são da Camada 1 (VS legalmente protegida) |
 
 Todos os polígonos vêm de imóveis com a condição "Analisado, em regularização ambiental (Lei 12.651/2012)". O arquivo
-cobre **AC, MT, PB, RJ e SP** (o prefixo do `cod_imovel` e o campo `cod_estado` coincidem em todos os imóveis).
+cobre **AC, MT, PB, RJ e SP**, que é o conjunto nacional completo de imóveis nessa condição (confirmado em 21/09/2026; o prefixo do `cod_imovel` e o campo `cod_estado` coincidem em todos os imóveis).
 
 ## Elegibilidade (`config_computo.ELEGIBILIDADE_CAR_REG`)
 
 | Regra | Valor | Situação |
 |---|---|---|
 | Condição do imóvel | igual à do relatório (comparação sem acento e sem símbolos: o arquivo traz "regularizacao" e "n") | do relatório |
-| Status do cadastro (`ind_status`) | AT (ativo), PE (pendente) e SU (suspenso): entram todos (PE + SU = 1,2 mil ha de 33,6 mil) | **PENDENTE D5** |
+| Status do cadastro (`ind_status`) | AT (ativo), PE (pendente) e SU (suspenso): entram todos (PE + SU = 1,2 mil ha de 33,6 mil) | Confirmado (D5, 21/09/2026) |
 | Área mínima | polígonos com área geodésica <= 0,01 m2 saem (5 fragmentos nulos de RL no MT) | técnico |
 
 ## Hierarquia
@@ -32,7 +32,7 @@ cobre **AC, MT, PB, RJ e SP** (o prefixo do `cod_imovel` e o campo `cod_estado` 
    (`P2_RECOOPERAR`; recorte peça a peça com índice espacial). Coluna `area_sobreposta_classes_anteriores_ha`.
 2. **Sobreposição dentro da classe:** o CAR tem polígonos sobrepostos (APP entre imóveis vizinhos e dentro do mesmo
    imóvel, APP x RL). A área sobreposta conta uma vez, no polígono de maior precedência: **APP > RL averbada > RL
-   aprovada e não averbada > RL proposta**, depois `fid_orig` (`PRECEDENCIA_CAR_REG`; **PENDENTE D6**, a ordem APP > RL vem
+   aprovada e não averbada > RL proposta**, depois `fid_orig` (`PRECEDENCIA_CAR_REG`; Confirmado (D6, 21/09/2026), a ordem APP > RL vem
    da seção 4.3 do relatório). Coluna `area_sobreposta_na_classe_ha`.
 3. `area_liquida_ha` = inteira - sobreposta nas classes anteriores - sobreposta na classe. Os polígonos líquidos são
    disjuntos entre si e da classe 1 (camada `P2_CAR_REGULARIZACAO`); é o que as classes seguintes vão subtrair.
@@ -53,7 +53,7 @@ por peças (união) por polígono inteiro, por polígono líquido e por célula 
 ## UF e bioma
 
 Como no Tier-1: cada polígono é dividido em células UF x bioma (IBGE) e o que fica fora dos limites vira "FORA"
-(`area_fora_ibge_ha` na tabela). `uf_diverge_car` marca quando a UF calculada difere do prefixo do `cod_imovel`.
+(`area_fora_ibge_ha` na tabela). **D7 (confirmado):** a área fora dos limites do IBGE fica rotulada "FORA", sem UF (14,6 ha, 87% do polígono `CARREG-RL-000924`, no AC, perto da fronteira); aparece separada nas tabelas por UF e bioma. `uf_diverge_car` marca quando a UF calculada difere do prefixo do `cod_imovel`.
 
 ## Campos e cuidados com os dados
 

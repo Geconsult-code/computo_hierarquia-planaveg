@@ -174,17 +174,17 @@ CAR_CONDICOES_SICAR_REGULARIZACAO = ["Analisado, em regularização ambiental (L
 # ---------------------------------------------------------------------------
 # Classe 3 - SICAR-regularização (área a recompor de APP e RL dos imóveis "Analisado, em regularização ambiental")
 # ---------------------------------------------------------------------------
-# Elegibilidade [D5-D6 PROPOSTAS em 21/09/2026, aguardando confirmação]:
+# Elegibilidade [D0, D5, D6 e D7 CONFIRMADAS em 21/09/2026]:
 #  - condição do imóvel: a do relatório (comparação sem acento e sem símbolos: "regularizacao" == "regularização");
 #  - status do cadastro (ind_status): AT ativo, PE pendente, SU suspenso. O relatório não filtra pelo status do
 #    cadastro e a camada já vem filtrada pela condição; por isso entram todos (PE+SU = 1,2 mil ha de 33,6 mil).
 ELEGIBILIDADE_CAR_REG = {
     "condicao": CAR_CONDICOES_SICAR_REGULARIZACAO[0],
-    "status_car": ["AT", "PE", "SU"],           # [PENDENTE D5] retirar PE/SU para ficar só com cadastros ativos
+    "status_car": ["AT", "PE", "SU"],           # [D5 CONFIRMADA: manter todos] retirar PE/SU deixaria só cadastros ativos (-1,2 mil ha)
     "area_min_ha": 1e-6,                        # polígonos com área geodésica <= 0,01 m2 saem (5 fragmentos nulos no CAR)
 }
 # Ordem de precedência DENTRO da classe (área sobreposta conta uma vez): APP > RL (seção 4.3 do relatório);
-# entre os temas de RL: averbada > aprovada e não averbada > proposta; depois fid.  [PENDENTE D6: confirmar]
+# entre os temas de RL: averbada > aprovada e não averbada > proposta; depois fid.  [D6 CONFIRMADA em 21/09/2026]
 PRECEDENCIA_CAR_REG = ["APP_ESCADINHA", "ARL_AVERBADA", "ARL_APROVADA_NAO_AVERBADA", "ARL_PROPOSTA"]   # por cod_tema
 NOME_CAR_REG = {"app": "Área a recompor - APP (art. 61-A)", "rl": "Área a recompor - Reserva Legal"}
 # Campos que seguem do CAR (sem dados pessoais: a camada só traz códigos de imóvel, tema e situação).
@@ -256,9 +256,10 @@ def precedentes(codigo: str) -> list[str]:
 #   D2 Reparação por etapa (fora "sem projeto", "indícios" e ATUALIZAR não Recuperada; entram "Projeto reprovado" e
 #      "Pendente de recuperação"); D3 Licenciamento 100% (inclui 6 ATUALIZAR); D4 Outras áreas 100%;
 #   precedência Licenciamento > Reparação > Embargo > Outras.
+# Decisões confirmadas em 21/09/2026 (SICAR-regularização, classe 3): D0 o arquivo (AC, MT, PB, RJ e SP; 2.391 imóveis) é o conjunto
+#   nacional completo; D5 entram todos os status do cadastro (AT, PE, SU); D6 precedência APP > RL averbada > RL aprovada não
+#   averbada > RL proposta; D7 a área fora dos limites do IBGE fica rotulada 'FORA' (14,6 ha, polígono CARREG-RL-000924), sem UF.
 PENDENCIAS = [
-    "SICAR-regularização (classe 3): confirmar D5 (status do cadastro AT/PE/SU: entram todos; PE+SU = 1,2 mil ha) e D6 (precedência APP > RL averbada > RL aprovada não averbada > RL proposta).",
-    "SICAR-regularização: o arquivo cobre só AC, MT, PB, RJ e SP (2.391 imóveis) - confirmar que é o conjunto nacional 'Analisado, em regularização ambiental'.",
     "Papel dos embargos PANGIA no cômputo: entram como 'Outros projetos' só pela interseção com a VS (decidido); implementar no passo 2 (classe 4).",
     "ICMBio (adiado em 21/09/2026): quais camadas são projetos; ver análise de atributos e sobreposição (Analise_Atributos_e_Sobreposicao_Projetos_IBAMA_ICMBio.xlsx).",
     "OR: arquivo com 4 feições (uma por bioma, dissolvido) - confirmar que é o conjunto público final.",
