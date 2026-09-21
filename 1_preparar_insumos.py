@@ -3,7 +3,7 @@
 Objetivo: aplica a elegibilidade de cada fonte, padroniza CRS (EPSG:4674) e campos, repara geometrias
 e gera o insumo elegível de cada classe (prefixo IN_), sempre com os POLÍGONOS INTEIROS.
 
-Implementado nesta versão (v0.4.0): RECOOPERAR (IBAMA 2026, Tier-1), CAR_REGULARIZACAO (classe 3) e EMBARGOS_PANGIA (classe 4).
+Implementado nesta versão (v0.5.0): RECOOPERAR (IBAMA 2026, Tier-1), CAR_REGULARIZACAO (classe 3), EMBARGOS_PANGIA (classe 4) e OR (classe 5).
     RECOOPERAR
     - Elegibilidade por categoria (config_computo.ELEGIBILIDADE_RECOOPERAR).
     - Campos harmonizados, sem dados pessoais (config_computo.CAMPOS_RECOOPERAR / COLUNAS_PESSOAIS_RECOOPERAR).
@@ -18,7 +18,11 @@ Implementado nesta versão (v0.4.0): RECOOPERAR (IBAMA 2026, Tier-1), CAR_REGULA
       pessoais (CAMPOS_EMBARGO_PANGIA). Só os embargos com VS qualificada dentro seguem; a classe 4 conta a VS DENTRO do embargo.
     - As peças "VS x embargo" vêm do cruzamento já feito (FONTES["embargos_pangia"]["cruzamento"], duas versões) e são
       conferidas contra o arquivo de embargos (chave num_tad + serie_tad + seq_tad; peça dentro do polígono).
-Ainda não implementado: ICMBio (adiado), OR, TI, UC, ProManguezal.
+    OR (classe 5, Observatório da Restauração)
+    - ORR 2025 (4 feições dissolvidas por bioma, EPSG projetado Albers no arquivo; convertido para EPSG:4674), AREA TOTAL dos polígonos,
+      com ou sem VS. Como o arquivo não traz VS, ela é cruzada aqui com as camadas brutas do INPE (VS_CAMADAS): as partes dos polígonos
+      são agrupadas em células de CELULA_VS_OR_GRAUS (uma leitura de VS por célula e camada); atributos vs22q_*/vs2224q_* e peças em arquivo próprio.
+Ainda não implementado: ICMBio (adiado), TI, UC, ProManguezal.
 
 Entradas: FONTES["recooperar"]["arquivo"] (Projetos_com_VegSec\\IBAMA_Projetos_Recooperar_2026_com_VegSec.gpkg);
           FONTES["sicar_regularizacao"]["arquivo"] e as camadas de VS (Vegetacao_Secundaria_INPE).
@@ -32,9 +36,12 @@ Saídas (em config_computo.SAIDA_INSUMOS):
     IN_Embargos_PANGIA_20260920.gpkg         camada IN_EMBARGOS_PANGIA (embargos inteiros com VS em alguma versão; atributos de VS)
     IN_Embargos_PANGIA_20260920_VS.gpkg      peças VS x embargo (vs22q_pedacos, vs2224q_pedacos)
     IN_Embargos_PANGIA_20260920_resumo.csv / _excluidos.csv (embargos sem VS)
+    IN_OR_2025.gpkg                          camada IN_OR (4 polígonos inteiros, atributos de VS)
+    IN_OR_2025_VS.gpkg                       peças VS x ORR (vs22q_pedacos, vs2224q_pedacos)
+    IN_OR_2025_resumo.csv / _excluidos.csv
     _log_passo1.txt
 
-Execução:  python 1_preparar_insumos.py [recooperar] [car_regularizacao] [embargos_pangia]   (sem argumento: todas)
+Execução:  python 1_preparar_insumos.py [recooperar] [car_regularizacao] [embargos_pangia] [or]   (sem argumento: todas)
 """
 from __future__ import annotations
 
@@ -50,10 +57,11 @@ from computo import geometria as geo
 from computo import io_dados as io
 from computo import vs as vsm
 
-FONTES_IMPLEMENTADAS = ["recooperar", "car_regularizacao", "embargos_pangia"]
+FONTES_IMPLEMENTADAS = ["recooperar", "car_regularizacao", "embargos_pangia", "or"]
 NOME_ARQ = "IN_Recooperar_2026"
 NOME_ARQ_CAR = "IN_CAR_Regularizacao_Junho26"
 NOME_ARQ_EMB = "IN_Embargos_PANGIA_20260920"
+NOME_ARQ_OR = "IN_OR_2025"
 
 
 def _col(g, nome):
@@ -355,6 +363,101 @@ def preparar_embargos_pangia(log):
     return ele, ped
 
 
+def preparar_or(log):
+    """Classe 5: Observatório da Restauração (área total dos polígonos; VS como atributo)."""
+    import time
+
+    import geopandas as gpd
+    import shapely
+
+    fonte = cfg.FONTES["or"]
+    arq = cfg.RAIZ / fonte["arquivo"]
+    if not arq.exists():
+        raise FileNotFoundError(f"Não encontrei {arq}.")
+    E = cfg.ELEGIBILIDADE_OR
+    log(f"lendo {arq}")
+    g = io.ler_camada(arq, fonte["camada"])
+    geoms, invalida = geo.reparar(g.geometry.values)
+    sem_geom = np.array([x is None or x.is_empty for x in geoms])
+    area = geo.area_ha(geoms)
+    hier = g["hierarquia"].astype("string").str.strip().str.upper().fillna("").to_numpy()
+    motivo = np.where(sem_geom, "sem geometria", np.where(hier != E["hierarquia"], f"hierarquia diferente de {E['hierarquia']}",
+                      np.where(area <= E["area_min_ha"], "área desprezível", "")))
+    faltam = sorted(set(g["Bioma"]) - set(cfg.BIOMA_IBGE_PARA_VS))
+    assert not faltam, f"bioma sem correspondência em BIOMA_IBGE_PARA_VS: {faltam}"
+    bioma_vs = g["Bioma"].map(cfg.BIOMA_IBGE_PARA_VS)
+    n_partes = np.array([len(shapely.get_parts(x)) if x is not None else 0 for x in geoms])
+    out = pd.DataFrame(index=g.index)
+    out["id_proj"] = "ORR-" + bioma_vs
+    out["fonte_dado"] = "ORR_2025"
+    out["categoria"] = "or"
+    out["categoria_nome"] = cfg.NOME_OR
+    out["camada_orig"] = fonte["camada"]
+    out["fid_orig"] = g["OBJECTID"].astype("Int64")
+    out["bioma_fonte"] = g["Bioma"]
+    out["hierarquia_fonte"] = g["hierarquia"]
+    out["area_decl_ha"] = pd.to_numeric(g["Area_ha"], errors="coerce")
+    out["area_ha_geo"] = area
+    out["n_partes"] = n_partes
+    out["elegivel_computo"] = (motivo == "").astype(int)
+    out["motivo_elegibilidade"] = motivo
+    out["geom_reparada"] = invalida.astype(int)
+    assert out["id_proj"].is_unique, "id_proj repetido"
+    log(f"  {len(g)} polígonos | elegíveis {int(out['elegivel_computo'].sum())} | reparados {int(invalida.sum())} | "
+        f"{int(n_partes.sum())} partes | área {area.sum():,.1f} ha (declarada {out['area_decl_ha'].sum():,.1f} ha)")
+    ele = gpd.GeoDataFrame(out, geometry=geoms, crs=g.crs)
+    ele = ele[ele["elegivel_computo"] == 1].copy().reset_index(drop=True)
+
+    # ---- VS qualificada (2 versões): partes dos polígonos agrupadas em células ----
+    cel = cfg.CELULA_VS_OR_GRAUS
+    partes, ids, grupos = [], [], []
+    for pid, gm in zip(ele["id_proj"], ele.geometry.values):
+        ps = shapely.get_parts(gm)
+        cx, cy = shapely.get_x(shapely.centroid(ps)), shapely.get_y(shapely.centroid(ps))
+        partes.extend(list(ps))
+        ids.extend([pid] * len(ps))
+        grupos.extend([f"{int(np.floor(x / cel))}_{int(np.floor(y / cel))}" for x, y in zip(cx, cy)])
+    log(f"VS x {len(partes)} partes em {len(set(grupos))} células de {cel} grau")
+    ped = {}
+    for p in cfg.VS_VERSOES:
+        t0 = time.time()
+        log(f"{p} ({cfg.VS_VERSOES[p]}):")
+        ped[p] = vsm.pedacos_em_poligonos(np.array(partes, dtype=object), np.array(ids), np.array(grupos), cfg.VS_CAMADAS[p], cfg.RAIZ, log=log)
+        at = vsm.atributos_vs(ped[p], ele["id_proj"], ele["area_ha_geo"], cfg.BIOMAS_VS)
+        for c in at.columns:
+            ele[f"{p}_{c}"] = at[c].to_numpy()
+        log(f"  {p}: {len(ped[p])} peças, VS nos polígonos {ele[f'{p}_area_ha'].sum():,.1f} ha ({time.time() - t0:.0f}s)")
+
+    # ---- saídas ----
+    cfg.SAIDA_INSUMOS.mkdir(parents=True, exist_ok=True)
+    io.gravar_camada(ele, cfg.SAIDA_INSUMOS / f"{NOME_ARQ_OR}.gpkg", "IN_OR", primeira=True)
+    arq_vs = cfg.SAIDA_INSUMOS / f"{NOME_ARQ_OR}_VS.gpkg"
+    for k, p in enumerate(cfg.VS_VERSOES):
+        d = ped[p].copy()
+        d["area_ha"] = geo.area_ha(d["geometry"].values)
+        io.gravar_camada(gpd.GeoDataFrame(d, geometry="geometry", crs=g.crs), arq_vs, f"{p}_pedacos", primeira=(k == 0))
+    exc = out[out["elegivel_computo"] == 0]
+    exc[["id_proj", "bioma_fonte", "hierarquia_fonte", "area_ha_geo", "motivo_elegibilidade", "fid_orig"]].to_csv(
+        cfg.SAIDA_INSUMOS / f"{NOME_ARQ_OR}_excluidos.csv", index=False, encoding="utf-8-sig")
+    linhas = []
+    for _, r in ele.iterrows():
+        linha = {"id_proj": r["id_proj"], "bioma": r["bioma_fonte"], "n_partes": r["n_partes"], "area_ha_geo": r["area_ha_geo"], "area_decl_ha": r["area_decl_ha"]}
+        for p in cfg.VS_VERSOES:
+            linha[f"{p}_area_ha"] = r[f"{p}_area_ha"]
+            linha[f"{p}_pct"] = r[f"{p}_pct"]
+        linhas.append(linha)
+    resumo = pd.DataFrame(linhas)
+    tot = {"id_proj": "TOTAL", "bioma": "", **{c: resumo[c].sum() for c in resumo.columns if c not in ("id_proj", "bioma", "vs22q_pct", "vs2224q_pct")}}
+    for p in cfg.VS_VERSOES:
+        tot[f"{p}_pct"] = tot[f"{p}_area_ha"] / tot["area_ha_geo"] * 100.0
+    resumo = pd.concat([resumo, pd.DataFrame([tot])], ignore_index=True)
+    resumo.to_csv(cfg.SAIDA_INSUMOS / f"{NOME_ARQ_OR}_resumo.csv", index=False, encoding="utf-8-sig")
+    log("\n" + resumo.round(1).to_string(index=False))
+    log(f"IN_OR: {len(ele)} polígonos, {ele['area_ha_geo'].sum():,.1f} ha (área total, com ou sem VS)")
+    log(f"gravado: {cfg.SAIDA_INSUMOS / (NOME_ARQ_OR + '.gpkg')}")
+    return ele, ped
+
+
 def main(argv=None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     pedidas = [a.lower() for a in argv] or FONTES_IMPLEMENTADAS
@@ -375,6 +478,8 @@ def main(argv=None) -> int:
         preparar_car_regularizacao(log)
     if "embargos_pangia" in pedidas:
         preparar_embargos_pangia(log)
+    if "or" in pedidas:
+        preparar_or(log)
     log("fim")
     return 0
 

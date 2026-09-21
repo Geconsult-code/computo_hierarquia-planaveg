@@ -301,6 +301,56 @@ def teste_tabela_celulas_sem_vs():
     assert cel[cel["i"] == 2]["area_liquida_ha"].sum() == 0 and cel[cel["i"] == 0]["area_liquida_ha"].sum() > 0
 
 
+def teste_config_or():
+    import config_computo as c
+    f = c.FONTES["or"]
+    assert f["arquivo"].startswith("ORR_") and f["camada"]
+    assert c.precedentes("OR") == ["RECOOPERAR", "SICAR_REGULARIZACAO", "OUTROS_PROJETOS"]      # MonitoRAD (inativo) não entra
+    assert c.SAIDA_TIER5.name == "Tier5_OR" and c.CELULA_VS_OR_GRAUS > 0
+    assert set(c.BIOMA_IBGE_PARA_VS) >= {"Amazônia", "Caatinga", "Cerrado", "Mata Atlântica"}   # os 4 biomas do ORR
+
+
+def teste_classes_anteriores_por_versao():
+    """A classe 4 tem geometria por versão da VS: a classe 5 precisa saber qual subtrair."""
+    import importlib
+    m = importlib.import_module("2_camada2_projetos")
+    sem = m._arquivos_classes()
+    assert set(sem) == {"RECOOPERAR", "SICAR_REGULARIZACAO"}
+    com = m._arquivos_classes("vs2224q")
+    assert com["OUTROS_PROJETOS"][1] == "P2_OUTROS_PROJETOS_vs2224q"
+    try:
+        m._geoms_por_classe("OR")        # sem versão, a classe 4 não pode ser resolvida
+    except (NotImplementedError, FileNotFoundError):
+        pass
+    else:
+        raise AssertionError("deveria exigir a versão da VS")
+
+
+def teste_pedacos_vs_poligono_multiparte():
+    """Polígono de várias partes (como o ORR): as peças das partes, sob o mesmo id, somam a VS do polígono."""
+    import tempfile
+    from pathlib import Path
+    import geopandas as gpd
+    import numpy as np
+    import shapely
+    from computo.embargos import uniao_por_id
+    from computo.geometria import area_ha
+    from computo.vs import atributos_vs, pedacos_em_poligonos
+    d = Path(tempfile.mkdtemp())
+    box = lambda x0, y0, x1, y1: shapely.segmentize(shapely.box(x0, y0, x1, y1), 0.005)
+    vs = gpd.GeoDataFrame({"id": [1, 2], "ano": ["2022", "2022"]}, geometry=[box(-50.00, -10.00, -49.98, -9.98), box(-40.10, -5.00, -40.05, -4.95)], crs=4674)
+    vs.to_file(d / "vs.gpkg", layer="L", driver="GPKG")
+    p1, p2, p3 = box(-50.01, -10.01, -49.99, -9.99), box(-40.08, -5.02, -40.02, -4.97), box(-30, -1, -29.99, -0.99)   # 3 partes do mesmo polígono
+    partes = np.array([p1, p2, p3], dtype=object)
+    ped = pedacos_em_poligonos(partes, np.array(["ORR-X"] * 3), np.array(["a", "b", "c"]), [("vs.gpkg", "L", "Cerrado", "2022")], d)
+    assert set(ped["id_proj"]) == {"ORR-X"} and len(ped) == 2
+    multi = shapely.MultiPolygon([p1, p2, p3])
+    esperado = area_ha([shapely.intersection(multi, shapely.union_all(list(vs.geometry)))])[0]
+    at = atributos_vs(ped, ["ORR-X"], [area_ha([multi])[0]], ["Cerrado"])
+    assert abs(at["area_ha"].iloc[0] - esperado) < 1e-6 * esperado and at["tem"].iloc[0] == 1
+    assert abs(area_ha([uniao_por_id(ped, ["ORR-X"])[0]])[0] - esperado) < 1e-6 * esperado
+
+
 def teste_config_vs_camadas():
     import config_computo as c
     assert set(c.VS_CAMADAS) == set(c.VS_VERSOES)

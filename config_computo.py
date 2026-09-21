@@ -24,6 +24,7 @@ SAIDA_INSUMOS = SAIDA / "Insumos"               # passo 1: IN_<CLASSE> (elegíve
 SAIDA_TIER1 = SAIDA / "Tier1_Recooperar"        # passo 2 (classe 1): P2_RECOOPERAR + tabelas
 SAIDA_TIER3 = SAIDA / "Tier3_CAR_Regularizacao" # passo 2 (classe 3, SICAR-regularização); a classe 2 (MonitoRAD) está desativada
 SAIDA_TIER4 = SAIDA / "Tier4_Outros_Projetos"   # passo 2 (classe 4, Outros projetos: por ora só embargos PANGIA x VS)
+SAIDA_TIER5 = SAIDA / "Tier5_OR"                # passo 2 (classe 5, Observatório da Restauração)
 
 # ---------------------------------------------------------------------------
 # Parâmetros gerais
@@ -84,7 +85,7 @@ FONTES = {
         "icmbio_restauracao": "Projetos_com_VegSec/ICMBio_Projetos_Restauracao_2026_com_VegSec.gpkg",   # PENDENTE: quais camadas
         "icmbio_gef_terrestre": "Projetos_com_VegSec/ICMBio_Projetos_GEF_Terrestre_2026_com_VegSec.gpkg",
     },
-    "or": {"arquivo": "ORR_Observatorio_Restauracao_2025_com_area.gpkg"},          # PENDENTE: confirmar conteúdo
+    "or": {"arquivo": "ORR_Observatorio_Restauracao_2025_com_area.gpkg", "camada": "Observatorio_da_Restauracao_2025"},   # uso confirmado em 21/09/2026
     "monitorad": None,   # NÃO ENTRA no cômputo 2026 (dados ainda não recebidos)
     # --- Camada 1 (Governança) ---
     "ti": {"arquivo": "Terras_Indigenas_FUNAI20260507.gpkg"},
@@ -222,6 +223,16 @@ COLUNAS_PESSOAIS_PANGIA = ["nome_embar", "cpf_cnpj_e", "nome_imove", "des_locali
 PLACEHOLDERS_PANGIA = ["", "Não se aplica", "Nao se aplica", "Não Se Aplica"]
 ELEGIBILIDADE_EMBARGO_PANGIA = {"area_min_ha": 1e-6}   # peça de VS com área <= 0,01 m2 sai
 
+# ---------------------------------------------------------------------------
+# Classe 5 - OR (Observatório da Restauração, formato público) [uso confirmado em 21/09/2026]
+# ---------------------------------------------------------------------------
+# O arquivo (ORR 2025) traz 4 feições, uma por bioma (Amazônia, Caatinga, Cerrado, Mata Atlântica), já dissolvidas, com 38 mil partes
+# pequenas; não há atributos por projeto. Entra pela ÁREA TOTAL dos polígonos, com ou sem VS (como as classes 1 e 3); a VS
+# fica como atributo. A classe subtrai as classes 1, 3 e 4 (a 4 na versão da VS em cálculo).
+ELEGIBILIDADE_OR = {"hierarquia": "ORR", "area_min_ha": 1e-6}
+NOME_OR = "Observatório da Restauração (ORR 2025, formato público)"
+CELULA_VS_OR_GRAUS = 0.25    # agrupa as partes em células de 0,25 grau para ler a VS (uma leitura por célula)
+
 # VS por camada (arquivo, camada, bioma em BIOMAS_VS). Todas em SIRGAS 2000 (a VS 2022 da Mata Atlântica vem
 # sem CRS definido no arquivo; é tratada como EPSG:4674, como nos cruzamentos anteriores).
 _VS22 = "Vegetacao_Secundaria_INPE/VS_2022_TerraBrasilis_Vegetacao_Secundaria_Qualificada_Brasil.gpkg"
@@ -290,11 +301,12 @@ def precedentes(codigo: str) -> list[str]:
 # Decisões confirmadas em 21/09/2026 (SICAR-regularização, classe 3): D0 o arquivo (AC, MT, PB, RJ e SP; 2.391 imóveis) é o conjunto
 #   nacional completo; D5 entram todos os status do cadastro (AT, PE, SU); D6 precedência APP > RL averbada > RL aprovada não
 #   averbada > RL proposta; D7 a área fora dos limites do IBGE fica rotulada 'FORA' (14,6 ha, polígono CARREG-RL-000924), sem UF.
-#   Classe 4 (21/09/2026): embargos PANGIA20260920 entram só pela interseção com a VS qualificada (decisão de 20/09/2026); E1 a E3 adotadas.
+#   Classe 4 (21/09/2026): embargos PANGIA20260920 entram só pela interseção com a VS qualificada (decisão de 20/09/2026); E1 a E4 adotadas, a confirmar.
+#   Classe 5 (21/09/2026): usar o ORR 2025 (4 polígonos dissolvidos por bioma), pela ÁREA TOTAL dos polígonos, independente do cruzamento com a VS.
 PENDENCIAS = [
     "Classe 4 (embargos PANGIA x VS): confirmar E1 (todos os embargos, sem filtro de status), E2 (embargo mais antigo fica com a área sobreposta), E3 (geometria por versão da VS) e E4 (sem filtro pela data do embargo).",
     "ICMBio (adiado em 21/09/2026): quais camadas são projetos; ver análise de atributos e sobreposição (Analise_Atributos_e_Sobreposicao_Projetos_IBAMA_ICMBio.xlsx).",
-    "OR: arquivo com 4 feições (uma por bioma, dissolvido) - confirmar que é o conjunto público final.",
+    "OR: usado o ORR 2025 como entregue (4 feições dissolvidas por bioma, sem Pampa e Pantanal); se sair versão mais nova ou com Pampa/Pantanal, trocar FONTES['or'].",
     "Florestas Públicas Não Destinadas (CNFP): fonte do dado.",
     "CAR Regularização: arquivo 'Junho26' com camadas 'Julho26' (2.398 imóveis) - confirmar.",
     "APAs: definição da área pública (sugestão: APA menos imóveis privados do CAR).",

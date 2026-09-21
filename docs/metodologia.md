@@ -55,6 +55,8 @@ Recuperação da Vegetação Nativa.
 - **SICAR:** área a recuperar dos imóveis "Analisado, em regularização ambiental", pois há instrumento
   jurídico de compromisso com a recuperação.
 - **Observatório da Restauração:** polígonos no formato "público".
+  *No cômputo 2026 (v0.5.0):* usado o arquivo ORR 2025 como entregue (4 polígonos, um por bioma, já dissolvidos; sem Pampa e Pantanal),
+  pela **área total dos polígonos**, com ou sem VS (decisão de 21/09/2026); a VS fica como atributo. Ver `docs/tier5_or.md`.
 - **Outros projetos:** MMA e demais órgãos, com polígono, extensão e ano de implantação (Anexo 3).
 
 Os projetos entram no cômputo mesmo sem VS detectável.
