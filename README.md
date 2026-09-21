@@ -5,9 +5,10 @@ reporte da meta nacional do Planaveg 2025-2028, seguindo o Relatório Técnico *
 Monitoramento Geoespacial e Reporte de Áreas em Processo de Recuperação da Vegetação Nativa*
 (MMA / Conaveg, setembro de 2026).
 
-> **Status: esqueleto (v0.1.0).** A estrutura, a configuração e a documentação estão prontas. Os
-> módulos e scripts serão implementados passo a passo. Decisões ainda abertas estão em `PENDENCIAS`,
-> no arquivo `config_computo.py`.
+> **Status: v0.2.0 - Tier-1 (Recooperar 2026) implementado.** Passos 1 e 2 funcionam para a classe
+> Recooperar (área completa dos polígonos elegíveis, atributos de VS mantidos na tabela). As demais
+> classes e os passos 3 a 7 seguem como esqueleto. Decisões abertas estão em `PENDENCIAS`, no arquivo
+> `config_computo.py`. Método e saídas do Tier-1: `docs/tier1_recooperar.md`.
 
 ## Onde este repositório se encaixa
 
@@ -33,8 +34,8 @@ Monitoramento Geoespacial e Reporte de Áreas em Processo de Recuperação da Ve
 
 | Passo | Script | Função |
 |---|---|---|
-| 1 | `1_preparar_insumos.py` | Aplica elegibilidade, padroniza CRS e campos, atribui UF e bioma (limites IBGE) |
-| 2 | `2_camada2_projetos.py` | Hierarquia entre os projetos: Recooperar > SICAR-regularização > Outros projetos > OR |
+| 1 | `1_preparar_insumos.py` | Aplica elegibilidade, padroniza CRS e campos, repara geometrias (**implementado: Recooperar**) |
+| 2 | `2_camada2_projetos.py` | Hierarquia entre os projetos e atribuição de UF e bioma (**implementado: classe Recooperar / Tier-1**; demais classes pendentes) |
 | 3 | `3_camada1_vs_governanca.py` | Consolida os cruzamentos VS x TI, UC, manguezais e APP/AUR/RL |
 | 4 | `4_aplicar_hierarquia.py` | Aplica a ordem completa do Anexo 1 e remove Florestas Públicas Não Destinadas |
 | 5 | `5_desagregacao_arranjos.py` | Classifica nos arranjos da Figura 4, por UF e bioma |
@@ -56,6 +57,17 @@ computo_hierarquia-planaveg/
 └── exemplos/teste_nucleo.py # teste de integridade da configuração
 ```
 
+## Executar o Tier-1 (Recooperar 2026)
+
+```
+conda activate geo
+python exemplos/teste_nucleo.py        # 14 testes sintéticos
+python 1_preparar_insumos.py           # -> Computo_Planaveg_2026\Insumos
+python 2_camada2_projetos.py           # -> Computo_Planaveg_2026\Tier1_Recooperar
+```
+
+Os caminhos vêm de `config_computo.py` (ou das variáveis `PLANAVEG_RAIZ` e `PLANAVEG_SAIDA`).
+
 ## Instalação
 
 Recomendado conda-forge (no Windows, `pip` costuma quebrar GDAL/fiona):
@@ -75,4 +87,4 @@ Ficam em `GEODATABASE\GEOPACKAGE` (caminho em `config_computo.py`). O inventári
 ## Licença e citação
 
 MIT (ver `LICENSE`). Para citar: Braga Meira, M. (2026). *Cômputo Planaveg 2026 - hierarquia de
-sobreposições* (v0.1.0) [software]. Geoconsult Ltda. Ver `CITATION.cff`.
+sobreposições* (v0.2.0) [software]. Geoconsult Ltda. Ver `CITATION.cff`.

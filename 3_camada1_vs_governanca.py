@@ -2,7 +2,7 @@
 
 Objetivo: Consolida em esquema padrão os cruzamentos já calculados da VS qualificada com TI, UC, manguezais e APP/AUR/RL dos imóveis selecionados. Não refaz os cruzamentos.
 
-Entradas: Cruzamento_Espacial_Vegetacao_Secundaria/* (VS-Terras_Indigenas, VS-Unidades_Conservacao, VS-Pro_Manguezal, VS-Cadastro_Ambiental_Rural) na versão de VS definida em config_computo.VS_VERSAO.
+Entradas: Cruzamento_Espacial_Vegetacao_Secundaria/* (VS-Terras_Indigenas, VS-Unidades_Conservacao, VS-Pro_Manguezal, VS-Cadastro_Ambiental_Rural) na versão de VS definida em config_computo.VS_VERSOES (as duas versões).
 
 Saídas: Camadas P1_<CLASSE> por UF (peças de VS por classe, ainda com sobreposição entre classes).
 

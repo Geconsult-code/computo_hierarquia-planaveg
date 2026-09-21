@@ -9,15 +9,19 @@ tratados como definitivos até serem confirmados (ver ``PENDENCIAS`` no final).
 """
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
 # Caminhos
 # ---------------------------------------------------------------------------
-RAIZ = Path(r"C:\Users\User\Dropbox\#CONSULTANCY\PLANAVEG\GEODATABASE\GEOPACKAGE")
-SAIDA = RAIZ / "Computo_Planaveg_2026"          # 1 GeoPackage por UF (limite ~2 GB do ArcGIS)
+# PLANAVEG_RAIZ / PLANAVEG_SAIDA permitem apontar para outra cópia dos dados (testes) sem editar o arquivo.
+RAIZ = Path(os.environ.get("PLANAVEG_RAIZ", r"C:\Users\User\Dropbox\#CONSULTANCY\PLANAVEG\GEODATABASE\GEOPACKAGE"))
+SAIDA = Path(os.environ.get("PLANAVEG_SAIDA", RAIZ / "Computo_Planaveg_2026"))   # classes grandes: 1 GeoPackage por UF (~2 GB no ArcGIS)
 LOGS = SAIDA / "_logs"
 PROGRESSO = SAIDA / "_progresso"                # checkpoints JSON (retomada automática)
+SAIDA_INSUMOS = SAIDA / "Insumos"               # passo 1: IN_<CLASSE> (elegíveis, polígonos inteiros)
+SAIDA_TIER1 = SAIDA / "Tier1_Recooperar"        # passo 2 (classe 1): P2_RECOOPERAR + tabelas
 
 # ---------------------------------------------------------------------------
 # Parâmetros gerais
@@ -51,7 +55,14 @@ BIOMA_IBGE_PARA_VS = {
 FONTES = {
     # --- Camada 2 (Intencionalidade) ---
     "recooperar": {
-        "arquivo": "IBAMA_Projetos_Recooperar_2026_com_area.gpkg",     # PENDENTE: 2025 x 2026
+        # Recooperar 2026 (decidido) com a VS qualificada incorporada aos polígonos originais
+        # (saída de incorporar_vegsec_projetos.py; polígonos inteiros, atributos vs22q_* e vs2224q_*).
+        "arquivo": "Projetos_com_VegSec/IBAMA_Projetos_Recooperar_2026_com_VegSec.gpkg",
+        # Peças VS x projeto usadas para recalcular a VS na área líquida e por UF/bioma:
+        "cruzamento": {
+            "vs22q": "Cruzamento_Espacial_Vegetacao_Secundaria/VS-Projetos_Restauracao/IBAMA_Projetos_Recooperar_2026_x_VegSec_2022_qualificada.gpkg",
+            "vs2224q": "Cruzamento_Espacial_Vegetacao_Secundaria/VS-Projetos_Restauracao/IBAMA_Projetos_Recooperar_2026_x_VegSec_2022-2024_qualificada.gpkg",
+        },
         "camadas": {
             "licenciamento": "Processo_de_Licenciamento_Ambiental",
             "reparacao": "Processo_de_Reparação_por_danos",
@@ -67,9 +78,9 @@ FONTES = {
             "imoveis": "CAR_Limite_Imovel_Julho26_Regularizacao_Ambiental",
         },
     },
-    "outros_projetos": {
-        "icmbio_restauracao": "ICMBio_Projetos_Restauracao_2026_com_area.gpkg",   # PENDENTE: quais camadas
-        "icmbio_gef_terrestre": "ICMBio_Projetos_GEF_Terrestre_2026_com_area.gpkg",
+    "outros_projetos": {   # ICMBio ADIADO (decisão de 21/09/2026): não entra no Tier-1; retomar depois
+        "icmbio_restauracao": "Projetos_com_VegSec/ICMBio_Projetos_Restauracao_2026_com_VegSec.gpkg",   # PENDENTE: quais camadas
+        "icmbio_gef_terrestre": "Projetos_com_VegSec/ICMBio_Projetos_GEF_Terrestre_2026_com_VegSec.gpkg",
     },
     "or": {"arquivo": "ORR_Observatorio_Restauracao_2025_com_area.gpkg"},          # PENDENTE: confirmar conteúdo
     "monitorad": None,   # NÃO ENTRA no cômputo 2026 (dados ainda não recebidos)
@@ -90,13 +101,18 @@ FONTES = {
     "florestas_publicas_nao_destinadas": None,                      # PENDENTE: fonte do dado (CNFP)
 }
 
-# Vegetação secundária qualificada (>= 2 ha). PENDENTE: definir a versão de referência.
-VS_VERSAO = "PENDENTE"   # "2022_qualificada" | "2022-2024_qualificada"
+# Vegetação secundária qualificada (>= 2 ha). DECIDIDO: o cômputo roda em DUAS versões, sempre com VS qualificada.
+# Prefixo = prefixo dos atributos de VS nos arquivos de projetos (vs22q_*, vs2224q_*).
+VS_VERSOES = {
+    "vs22q": "2022_qualificada",
+    "vs2224q": "2022-2024_qualificada",   # Amazônia e Cerrado substituídos pela VS 2024 qualificada
+}
+BIOMAS_VS = ["Amazonia", "Caatinga", "Cerrado", "Mata_Atlantica", "Pampa", "Pantanal"]
 VS_ARQUIVOS = {
     "2022_qualificada": ["Vegetacao_Secundaria_INPE/VS_2022_TerraBrasilis_Vegetacao_Secundaria_Qualificada_Brasil.gpkg"],
     "2022-2024_qualificada": [
         "Vegetacao_Secundaria_INPE/VS_2024_Terraclass_Vegetacao_Secundaria_Qualificada_Bioma_Amazonia.gpkg",
-        "Vegetacao_Secundaria_INPE/VS_2024_Terraclass_Vegetacao_Secundaria_Qualificada_Bioma_Cerrado.gpkg",  # suspeita de filtro
+        "Vegetacao_Secundaria_INPE/VS_2024_Terraclass_Vegetacao_Secundaria_Qualificada_Bioma_Cerrado.gpkg",  # conferido: abr/2025
         "Vegetacao_Secundaria_INPE/VS_2022_TerraBrasilis_Vegetacao_Secundaria_Qualificada_Brasil.gpkg",       # demais 4 biomas
     ],
 }
@@ -106,10 +122,50 @@ VS_ARQUIVOS = {
 # ---------------------------------------------------------------------------
 ELEGIBILIDADE_RECOOPERAR = {
     "campo_status": "status_are",
-    "licenciamento": None,                                # todas as áreas de LAC (100% têm projeto)
-    "reparacao": ["Em recuperação", "Recuperada"],        # relatório: "a partir de projeto protocolado"
-    "embargo": ["Em recuperação", "Recuperada"],          # relatório: "em recuperação" ou "recuperada"
+    "campo_etapa": "descricao_",
+    # Licenciamento (LAC): premissa do usuário = 100% da camada. Nenhum registro traz "LAC" literal
+    # (tipo_licen = LO, LI, ...). Inclui 6 polígonos com status ATUALIZAR (8,3 mil ha).      [PENDENTE D3: confirmar]
+    "licenciamento": {"status": None},
+    # Reparação: "a partir de projeto protocolado", lido pela ETAPA (descricao_).             [PENDENTE D2: confirmar]
+    #  - fora: etapas sem projeto (regeneração/indício);
+    #  - etapa ATUALIZAR: entra só se status = Recuperada (projeto concluído); em recuperação, fica fora;
+    #  - "Projeto reprovado" ENTRA pela leitura literal (etapa >= protocolado): 2,4 mil ha; para retirar, ver etapas_fora.
+    "reparacao": {
+        "status": ["Em recuperação", "Pendente de recuperação", "Recuperada"],
+        "etapas_fora": ["sem projeto", "indícios", "índicios"],          # correspondência por trecho, sem caixa
+        "etapa_atualizar": {"Recuperada": True, "Em recuperação": False, "Pendente de recuperação": False},
+    },
+    # Embargo: status "Em recuperação" ou "Recuperada" (a camada 2026 só traz esses dois).
+    "embargo": {"status": ["Em recuperação", "Recuperada"]},
+    # Outras áreas: categoria do dashboard do relatório; fora da lista de premissas.         [PENDENTE D4: confirmar]
+    "outras": {"status": None},
 }
+# Ordem de precedência DENTRO do Recooperar quando polígonos de camadas diferentes se sobrepõem
+# (a área sobreposta é contada uma vez, na categoria de maior precedência). Ajustável.
+PRECEDENCIA_RECOOPERAR = ["licenciamento", "reparacao", "embargo", "outras"]
+SIGLA_CATEGORIA = {"licenciamento": "LIC", "reparacao": "REP", "embargo": "EMB", "outras": "OUT"}
+NOME_CATEGORIA = {"licenciamento": "Licenciamento", "reparacao": "Reparação por danos",
+                  "embargo": "Áreas embargadas", "outras": "Outras áreas de projetos"}
+# Valores-placeholder do IBAMA/ICMBio que viram nulo nos campos harmonizados:
+PLACEHOLDERS = ["ATUALIZAR", "ATUALIZAR - ATUALIZAR", "Não se aplica", "Nao se aplica", "Não informado", "Não identificado"]
+# Cadeia do ano de início (Recooperar): primeiro campo válido; o último é proxy (data da informação).
+ANO_INICIO_CADEIA = [("dt_projeto", "dt_projeto"), ("dt_assinat", "dt_assinat"), ("dt_documen", "dt_documen (proxy)")]
+ANO_MIN, ANO_MAX = 1990, 2026                      # anos fora deste intervalo viram nulo
+DATAS_SENTINELA = ["2000-12-31", "2001-01-01"]     # data "nula" do sistema do IBAMA
+# Campos harmonizados do Recooperar: nome novo -> campo de origem (placeholders viram nulo).
+# Todos os demais campos originais ficam só em Projetos_com_VegSec/*_com_VegSec.gpkg (rastreabilidade
+# pelos campos arquivo_orig, camada_orig e fid_orig).
+CAMPOS_RECOOPERAR = {
+    "processo_sei": "processo", "documento_sei": "documento_", "embargo_num": "embargo", "auto_infracao": "auto_infra",
+    "termo_compromisso": "termo_comp", "licenca_num": "licenca_au",
+    "status_recuperacao": "status_are", "etapa_processo": "descricao_",
+    "tipo_licenca": "tipo_licen", "tipologia": "tipologia_", "nome_projeto": "empreendim",
+    "estrategia": "tecnica_re", "local_recuperacao": "local_repa", "encaminhamento": "enc_admini",
+    "classe_uso": "classe_uso", "categoria_fundiaria": "dominialid",
+    "uf_fonte": "sg_uf", "municipio_fonte": "municipio", "bioma_fonte": "bioma",
+}
+# Campos do Recooperar que NÃO seguem para o cômputo (dados pessoais, LGPD) nem para o dashboard:
+COLUNAS_PESSOAIS_RECOOPERAR = ["administra", "cpf_cnpj_a", "cpf_cnpj_e", "editor_alt", "editor_cad", "numeropess"]
 ELEGIBILIDADE_TI_FASES = ["Delimitada", "Declarada", "Homologada", "Regularizada"]  # conferir valores reais de fase_ti
 CAR_CONDICOES_SICAR_REGULARIZACAO = ["Analisado, em regularização ambiental (Lei nº 12.651/2012)"]
 
@@ -160,10 +216,10 @@ def precedentes(codigo: str) -> list[str]:
 
 
 PENDENCIAS = [
-    "Versão da VS de referência (VS_VERSAO): 2022 qualificada x 2022-2024; Cerrado 2024 qualificado com filtro suspeito.",
-    "Recooperar: 2025 x 2026 e mapeamento de status_are para o vocabulário do relatório.",
-    "Papel dos embargos PANGIA no cômputo (só 45% dos embargos do Recooperar 2026 casam por número/série).",
-    "ICMBio: quais camadas são projetos (Restauracao_Ecologica; Areas_Degradadas; Embargos_maior5ha).",
+    "Recooperar 2026: confirmar D2 (Reparação: leitura por etapa, inclui 'Projeto reprovado'), D3 (Licenciamento 100% da camada, inclui 6 'ATUALIZAR') e D4 ('Outras áreas' entram).",
+    "Precedência entre as 4 categorias do Recooperar quando se sobrepõem (PRECEDENCIA_RECOOPERAR): efeito < 2% da área.",
+    "Papel dos embargos PANGIA no cômputo: entram como 'Outros projetos' só pela interseção com a VS (decidido); implementar no passo 2 (classe 4).",
+    "ICMBio (adiado em 21/09/2026): quais camadas são projetos; ver análise de atributos e sobreposição (Analise_Atributos_e_Sobreposicao_Projetos_IBAMA_ICMBio.xlsx).",
     "OR: arquivo com 4 feições (uma por bioma, dissolvido) - confirmar que é o conjunto público final.",
     "Florestas Públicas Não Destinadas (CNFP): fonte do dado.",
     "CAR Regularização: arquivo 'Junho26' com camadas 'Julho26' (2.398 imóveis) - confirmar.",

@@ -7,7 +7,7 @@ campos vêm da leitura direta dos arquivos.
 
 | Arquivo | Camadas (feições) | Observações |
 |---|---|---|
-| `IBAMA_Projetos_Recooperar_2026_com_area.gpkg` (EPSG:4674) | Licenciamento (76); Reparação por danos (1.181); Embargo (357); Outras áreas (76) | `status_are`: Em recuperação, Recuperada, Pendente de recuperação, ATUALIZAR (6 no licenciamento). Campo `area_ha` |
+| `IBAMA_Projetos_Recooperar_2026_com_area.gpkg` (EPSG:4674); com a VS incorporada: `Projetos_com_VegSec\IBAMA_Projetos_Recooperar_2026_com_VegSec.gpkg` (entrada do Tier-1) | Licenciamento (76); Reparação por danos (1.181); Embargo (357); Outras áreas (76) | `status_are`: Em recuperação, Recuperada, Pendente de recuperação, ATUALIZAR (6 no licenciamento). Campo `area_ha` |
 | `IBAMA_Projetos_Recooperar_2025_com_area.gpkg` (EPSG:4326) | Licenciamento (67); Reparação (2.553); Embargo (1.726); Outras (136) | Muitos `ATUALIZAR` e "Competência de outros órgãos". Versão anterior; relação com a 2026 a definir |
 | `CAR_Junho26_Regularizacao_Ambiental.gpkg` (EPSG:4674) | Limite do imóvel (2.398); APPs (44.631); RL (2.477); AUR (183); Vegetação nativa (2.323); **Área a recompor APP (1.242); Área a recompor RL (1.238)** | Camadas nomeadas "Julho26" dentro de arquivo "Junho26". Chave `cod_imovel`. Fonte da classe SICAR-regularização |
 | `ICMBio_Projetos_Restauracao_2026_com_area.gpkg` | Restauracao_Ecologica (3.609); Areas_Degradadas (3.855); Embargos_maior5ha (3.685) | CRS não definido no arquivo. Definir quais camadas são projetos |
@@ -45,3 +45,21 @@ APP/RL/AUR, versões 2022, 2022 qualificada e 2024), `VS-Terras_Indigenas`, `VS-
 
 - MonitoRAD: dados não recebidos (fora do cômputo 2026).
 - Florestas Públicas Não Destinadas (CNFP): fonte a definir.
+
+## Saídas do Tier-1 (Recooperar 2026)
+
+Em `Computo_Planaveg_2026\Insumos` e `Computo_Planaveg_2026\Tier1_Recooperar` (ver `docs/tier1_recooperar.md`).
+
+| Arquivo | Conteúdo |
+|---|---|
+| `Insumos\IN_Recooperar_2026.gpkg` (`IN_RECOOPERAR`) | Polígonos elegíveis inteiros, campos harmonizados, sem dados pessoais, com atributos de VS |
+| `Insumos\IN_Recooperar_2026_excluidos.csv` / `_resumo.csv` | Polígonos fora do cômputo e o motivo; total x elegível por categoria |
+| `Tier1_Recooperar\P2_Recooperar_2026.gpkg` | `P2_RECOOPERAR_poligonos` (polígonos inteiros, 1 por projeto, 67 campos) e `P2_RECOOPERAR` (polígonos líquidos, disjuntos) |
+| `T1_areas_uf_bioma.csv` | Tabela longa: 1 linha por projeto x UF x bioma (área completa e líquida, VS completa e líquida nas 2 versões) |
+| `T1_resumo_categoria_uf_bioma.csv`, `T1_resumo.csv`, `T1_conferencias.csv` | Totais, conferências de conservação de área |
+
+Colunas próprias do Tier-1 na tabela de polígonos: `id_proj` (`REC26-<LIC|REP|EMB|OUT>-<fid>`), `categoria`,
+`elegivel_computo`, `motivo_elegibilidade`, `ano_inicio` e `ano_inicio_fonte`, `ano_infracao`,
+`prec_ordem`, `n_precedentes_sobrepostos`, `area_sobreposta_ha`, `area_liquida_ha`, `uf_principal`, `ufs`,
+`bioma_principal`, `biomas`, `uf_diverge_fonte`, `vs22q_*` e `vs2224q_*` (`_tem`, `_area_ha`, `_pct`, `_n_pol`,
+`_ha_<bioma>`, `_completa_recalc_ha`, `_liq_ha`).
