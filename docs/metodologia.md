@@ -98,7 +98,8 @@ O cruzamento da VS com APP/RL/AUR dos imóveis selecionados vem do repositório
   TI: fases delimitada, declarada, homologada e regularizada. UC: só o limite da UC (a zona de amortecimento não é UC); nas APAs entra só a área pública
   (APA menos os imóveis do CAR). Manguezal: toda a VS do ProManguezal.
 - Classes do CAR (9 APP, 10 AUR, 11 RL; `docs/tier9_11_car.md`): a área da classe é a VS qualificada dentro da APP, da AUR ou da RL dos imóveis selecionados.
-  A classe manda (APP > AUR > RL) e a categoria desempata dentro dela (Habilitados > Analisados > Não analisados; na mesma categoria, o menor `cod_imovel`).
+  Os imóveis Habilitados precedem os Analisados e os Não analisados em qualquer classe; dentro de cada grupo a classe manda (APP > AUR > RL). Entre Analisados e Não analisados a
+  categoria desempata dentro da classe (Analisados > Não analisados) e, na mesma categoria, vence o menor `cod_imovel` (o cruzamento não traz a data de cadastro).
   As peças do cruzamento se sobrepõem dentro do mesmo imóvel (temas de APP sobrepostos e duplicatas): antes da precedência elas são unidas por imóvel.
 - Áreas calculadas de forma geodésica (elipsoide GRS80), em EPSG:4674, como no restante do projeto.
 - Itens ainda pendentes de decisão estão em `PENDENCIAS` no arquivo `config_computo.py`.

@@ -9,7 +9,7 @@ Monitoramento Geoespacial e Reporte de Áreas em Processo de Recuperação da Ve
 > 6 (TI), 7 (UC), 8 (Manguezal), 9 (APP), 10 (AUR) e 11 (RL) implementadas.** Passos 1 e 2 funcionam para as classes de projetos (1, 3 e 5: área
 > completa dos polígonos, com os atributos de VS na tabela; classe 4: só a VS dentro do embargo), o passo 3 para as classes de governança 6 a 8
 > (a área da classe é a VS qualificada dentro do território; APAs só na área pública) e o passo 3b para as classes do CAR 9 a 11 (VS qualificada em
-> APP, AUR e RL dos imóveis selecionados, por UF, com a precedência Habilitados > Analisados > Não analisados). Cada classe subtrai as anteriores.
+> APP, AUR e RL dos imóveis selecionados, por UF, com os Habilitados à frente dos demais imóveis). Cada classe subtrai as anteriores.
 > Pendentes: o ICMBio (parte da classe 4) e os passos 4 a 7. Regras do Recooperar, da classe 3, da classe 4 (E1 a E4), da TI (T1) e da UC (U1) confirmadas
 > em 21/09/2026. Decisões abertas: `PENDENCIAS`, em `config_computo.py`. Método e saídas: `docs/tier1_recooperar.md`, `docs/tier3_car_regularizacao.md`,
 > `docs/tier4_outros_projetos.md`, `docs/tier5_or.md`, `docs/tier6_8_governanca_publica.md` e `docs/tier9_11_car.md`.

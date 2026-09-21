@@ -368,13 +368,19 @@ def precedentes(codigo: str) -> list[str]:
 #   averbada > RL proposta; D7 a área fora dos limites do IBGE fica rotulada 'FORA' (14,6 ha, polígono CARREG-RL-000924), sem UF.
 #   Classe 4 (21/09/2026): embargos PANGIA20260920 entram só pela interseção com a VS qualificada (decisão de 20/09/2026); E1 a E4 CONFIRMADAS em 21/09/2026 (todos os embargos com VS; embargo mais antigo fica com a área sobreposta; polígonos por versão; sem filtro pela data do embargo).
 #   Classe 5 (21/09/2026): usar o ORR 2025 (4 polígonos dissolvidos por bioma), pela ÁREA TOTAL dos polígonos, independente do cruzamento com a VS.
-# Classes 9 a 11 (CAR: APP, AUR, RL): as três categorias de imóveis do CAR selecionados entram com precedência entre si
-# Habilitados > Analisados > Não analisados (decisão do usuário em 21/09/2026); dentro de cada imóvel, APP > AUR > RL.
-CAR_CATEGORIAS_PRECEDENCIA = ["Habilitados", "Analisados", "Nao_Analisados"]
-# Implementação (v0.7.0): a classe manda e a categoria desempata. Em cada classe (APP, AUR, RL) a sobreposição entre imóveis fica com
-# Habilitados > Analisados > Não analisados e, na mesma categoria, com o menor cod_imovel; a APP subtrai antes da AUR e esta antes da RL,
-# qualquer que seja a categoria. As peças do cruzamento se sobrepõem dentro do mesmo imóvel (temas de APP sobrepostos, duplicatas):
-# antes da precedência, as peças de cada imóvel (categoria, cod_imovel, bioma da VS) são unidas.
+# Classes 9 a 11 (CAR: APP, AUR, RL). Precedência confirmada pelo usuário em 21/09/2026 (C1 e C2):
+#   1) os imóveis HABILITADOS precedem os Analisados e os Não analisados, em qualquer classe: a RL de um Habilitado vence a APP de um Analisado;
+#   2) dentro de cada grupo, a classe manda: APP > AUR > RL (dentro do imóvel também);
+#   3) entre Analisados e Não analisados, a classe manda e a categoria desempata (a APP de um Não analisado vence a RL de um Analisado;
+#      na mesma classe, Analisados > Não analisados);
+#   4) na mesma categoria, a sobreposição entre imóveis fica com o menor cod_imovel (o cruzamento não traz a data de cadastro).
+# Ordem de processamento (cada bloco subtrai as classes 1 a 8 e todos os blocos anteriores):
+#   APP-Habilitados, AUR-Habilitados, RL-Habilitados, APP-(Analisados e Não analisados), AUR-(idem), RL-(idem).
+CAR_GRUPOS_PRECEDENCIA = [["Habilitados"], ["Analisados", "Nao_Analisados"]]
+CAR_ROTULOS_GRUPOS = ["H", "AN"]      # sufixo do bloco nas colunas sobreposta_<classe>_<sufixo>_ha
+CAR_CATEGORIAS_PRECEDENCIA = [c for g in CAR_GRUPOS_PRECEDENCIA for c in g]     # Habilitados, Analisados, Nao_Analisados
+# As peças de um mesmo imóvel se sobrepõem no cruzamento (temas de APP sobrepostos, duplicatas): antes da precedência as peças de cada
+# imóvel (categoria, cod_imovel, bioma da VS) são unidas.
 # APAs (decisão de 21/09/2026): área pública = APA menos os imóveis cadastrados no CAR (CAR total dissolvido por UF, sem cancelados).
 APA_AREA_PUBLICA = "APA menos CAR total (CAR_Brasil_Maio2026_Imovel_Area_Total_dissolvido_UF)"
 PENDENCIAS = [
@@ -385,7 +391,5 @@ PENDENCIAS = [
     # T1 e U1 confirmadas pelo usuário em 21/09/2026:
     #   T1 sobreposição entre TIs: fase mais avançada (regularizada > homologada > declarada > delimitada), depois o menor código da TI;
     #   U1 sobreposição entre UCs: proteção integral > uso sustentável; fora da APA > APA; federal > estadual > municipal; a mais antiga; menor código CNUC.
-    "Classes 9 a 11 (CAR), adotado a confirmar (C1): a classe manda e a categoria desempata (APP de um imóvel Não analisado vence a RL de um Habilitado).",
-    "Classes 9 a 11 (CAR), adotado a confirmar (C2): a sobreposição entre imóveis da mesma categoria fica com o menor cod_imovel (o cruzamento não traz a data de cadastro).",
     "Classes 9 a 11 (CAR), achado: as peças de APP do cruzamento se sobrepõem dentro do mesmo imóvel (temas de APP sobrepostos e duplicatas): a soma de area_ha das peças de APP do cruzamento é várias vezes a área da união (3,3 vezes no AC); RL e AUR quase não se sobrepõem.",
 ]

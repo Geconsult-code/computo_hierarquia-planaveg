@@ -522,6 +522,9 @@ def teste_config_car():
     assert c["camada"].format(classe="APP", categoria="Nao_Analisados") == "VS_APP_Nao_Analisados"
     assert c["biomas_2024"] == ["Amazonia", "Cerrado"]
     assert cfg.CAR_CATEGORIAS_PRECEDENCIA == ["Habilitados", "Analisados", "Nao_Analisados"]
+    assert cfg.CAR_GRUPOS_PRECEDENCIA == [["Habilitados"], ["Analisados", "Nao_Analisados"]] and cfg.CAR_ROTULOS_GRUPOS == ["H", "AN"]
+    from computo import car as _car
+    assert [b[2] for b in _car.blocos()] == ["APP_H", "AUR_H", "RL_H", "APP_AN", "AUR_AN", "RL_AN"]
     assert cfg.precedentes("APP") == ["RECOOPERAR", "SICAR_REGULARIZACAO", "OUTROS_PROJETOS", "OR", "TI", "UC", "MANGUEZAL"]
     assert cfg.precedentes("RL")[-2:] == ["APP", "AUR"]
     from computo import anteriores, car
@@ -642,6 +645,45 @@ def teste_processar_classe_car():
     assert abs(t.loc["N", "area_liquida_ha"] - esperado_n) < 1e-3 * a1
     p = r["partes"]
     assert set(p["uf"]) == {"AA"} and set(p["bioma"]) == {"Norte"} and abs(p["area_ha"].sum() - (t["area_liquida_ha"].sum())) < 1e-3 * a1
+
+
+def teste_blocos_habilitados_primeiro():
+    """Habilitados precedem Analisados/Nao_Analisados em qualquer classe: a RL de um Habilitado vence a APP de um Nao_Analisado;
+    entre Analisados e Nao_Analisados a classe manda (APP de N vence a RL de A)."""
+    import geopandas as gpd
+    import numpy as np
+    import pandas as pd
+    from computo import anteriores, car
+    from computo.geometria import area_ha
+    from computo.territorio import CelulasUFBioma, Limites
+    uf = gpd.GeoDataFrame({"sigla": ["AA"]}, geometry=[_box(0, 0, 10, 10)], crs=4674)
+    bio = gpd.GeoDataFrame({"nome": ["Norte"]}, geometry=[_box(0, 0, 10, 10)], crs=4674)
+    cel = CelulasUFBioma(Limites(uf, "sigla", bio, "nome"))
+    # RL de H, APP de N e RL de A, todas sobre o mesmo retângulo 1 x 1 a 3 x 3 (2 x 2 graus)
+    ret = _box(1, 1, 3, 3)
+    linhas = [("RL", "Habilitados", "H1", ret), ("APP", "Nao_Analisados", "N1", ret), ("RL", "Analisados", "A1", ret),
+              ("RL", "Analisados", "A2", _box(6, 1, 7, 2)), ("APP", "Nao_Analisados", "N2", _box(6, 1, 7, 2))]
+    d = pd.DataFrame({"classe": [x[0] for x in linhas], "categoria": [x[1] for x in linhas], "cod_imovel": [x[2] for x in linhas],
+                      "bioma_vs": "Cerrado", "ano": 2022, "uf_car": "AA", "des_condic": "x", "geometry": [x[3] for x in linhas]})
+    d["area_ha_geo"] = area_ha(np.array(d["geometry"].values, dtype=object))
+    d["area_ha_arq"] = d["area_ha_geo"]
+    fixas = anteriores.geoms_por_classe
+    anteriores.geoms_por_classe = lambda *a, **k: []          # sem classes 1 a 8: só a precedência do CAR
+    try:
+        res = car.processar_uf_versao("AA", "vs22q", d, cel, conferencia="completa")
+    finally:
+        anteriores.geoms_por_classe = fixas
+    for r in res.values():
+        assert all(c["ok"] for c in r["conferencias"]), [c for c in r["conferencias"] if not c["ok"]]
+    liq = {cl: r["unidades"].set_index("cod_imovel")["area_liquida_ha"] for cl, r in res.items()}
+    a = area_ha([ret])[0]
+    assert abs(liq["RL"]["H1"] - a) < 1e-3 * a                      # o Habilitado fica com a área inteira
+    assert liq["RL"]["A1"] < 1e-6 and liq["APP"]["N1"] < 1e-6      # os outros dois perdem tudo para o Habilitado
+    b = area_ha([_box(6, 1, 7, 2)])[0]
+    assert abs(liq["APP"]["N2"] - b) < 1e-3 * b and liq["RL"]["A2"] < 1e-6     # dentro de A + N a classe manda (APP > RL)
+    u = res["RL"]["unidades"].set_index("cod_imovel")
+    assert abs(u.loc["A1", "sobreposta_rl_h_ha"] - a) < 1e-3 * a
+    assert abs(u.loc["A2", "sobreposta_app_an_ha"] - b) < 1e-3 * b
 
 
 if __name__ == "__main__":

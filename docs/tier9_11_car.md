@@ -16,12 +16,16 @@ tem Amazônia ou Cerrado na 2022 há a 2024 correspondente (verificado).
 
 ## Regras
 
-1. **A classe manda; a categoria desempata.** APP (9) > AUR (10) > RL (11), qualquer que seja a categoria do imóvel. Dentro da classe, a sobreposição entre imóveis fica com
-   Habilitados > Analisados > Não analisados e, na mesma categoria, com o menor `cod_imovel` (o cruzamento não traz a data de cadastro). *Adotado a confirmar (C1 e C2).*
+1. **Habilitados primeiro; depois, a classe manda e a categoria desempata.** Os imóveis Habilitados precedem os Analisados e os Não analisados em qualquer classe (a RL de um
+   Habilitado vence a APP de um Não analisado). Dentro de cada grupo, APP (9) > AUR (10) > RL (11). Entre Analisados e Não analisados a categoria desempata dentro da classe
+   (Analisados > Não analisados) e, na mesma categoria, a sobreposição entre imóveis fica com o menor `cod_imovel` (o cruzamento não traz a data de cadastro).
+   *Confirmado em 21/09/2026 (C1 e C2).* O cálculo segue seis "blocos", nesta ordem: APP, AUR e RL dos Habilitados (`APP_H`, `AUR_H`, `RL_H`); APP, AUR e RL dos Analisados +
+   Não analisados (`APP_AN`, `AUR_AN`, `RL_AN`). Os resultados são reunidos por classe (9, 10 e 11) e a categoria do imóvel continua em cada parte.
 2. **União por imóvel.** As peças do cruzamento se sobrepõem dentro do mesmo imóvel (temas de APP sobrepostos e duplicatas exatas): no AC, a soma de `area_ha` das peças de APP é
    3,3 vezes a área da união (43.416 ha contra 13.038 ha); na RL e na AUR quase não há sobreposição. Antes de qualquer precedência, as peças de cada imóvel
    (categoria, `cod_imovel`, bioma da VS, ano) são unidas. **Somar `area_ha` do cruzamento superestima a APP.**
-3. Cada classe subtrai as classes 1, 3, 4, 5, 6, 7 e 8 (líquidas, na versão da VS; lidas pela caixa da UF) e, na AUR e na RL, as classes do CAR de maior prioridade da mesma UF.
+3. Cada bloco subtrai as classes 1, 3, 4, 5, 6, 7 e 8 (líquidas, na versão da VS; lidas pela caixa da UF) e os blocos do CAR anteriores da mesma UF (colunas
+   `sobreposta_app_h_ha`, `sobreposta_aur_h_ha`, `sobreposta_rl_h_ha`, `sobreposta_app_an_ha`, `sobreposta_aur_an_ha`); `sobreposta_na_classe_ha` é a sobreposição entre imóveis do mesmo bloco.
    As APAs entram nas UCs só pela área pública (APA menos o CAR total), de modo que a parte privada delas segue aqui, no regime do imóvel.
 4. UF e bioma do IBGE por fragmento (as células UF x bioma do passo 3); o que sair dos limites do IBGE fica como "FORA". `uf_car` guarda a UF do imóvel; `bioma_vs`, o bioma da VS.
 
@@ -33,28 +37,31 @@ A conferência independente (união de todas as peças menos as classes anterior
 "cobertura corrigida em N peças" se isso ocorrer). Com a grade, a cobertura falhou em 0 dos 1.691 imóveis do AC. `geometria.clip_seguro` trata o outro erro
 do GEOS que apareceu (anel degenerado no recorte).
 
-## Conferências (por UF, versão e classe; `T9_conferencias.csv`, `T10_...`, `T11_...`)
+## Conferências (por UF, versão, classe e bloco; `T9_conferencias.csv`, `T10_...`, `T11_...`)
 
 Identidade de área por imóvel (peças = sobreposição no imóvel + classes anteriores + na classe + líquida); soma dos fragmentos UF x bioma = líquida; área fora dos limites do IBGE;
 fragmentos sem UF ou bioma; geometrias inválidas; líquida <= união do imóvel; `area_ha` do arquivo = área geodésica recalculada; sobreposição dos líquidos com as classes anteriores
 (cada par recortado pela caixa da parte); sobreposição entre fragmentos líquidos; e a conferência independente (área líquida = união das peças - união das classes anteriores, por
 componente conexo). As duas últimas são as pesadas: rodam por padrão com até 200 mil peças na classe (`--conferencia auto`); `--conferencia completa` força e `leve` omite.
 
-## Validação (nuvem, 4 UFs: AC, DF, SE e PR; 220 conferências, todas dentro do limite)
+## Validação (nuvem, 4 UFs: AC, DF, SE e PR; 440 conferências nas três classes, todas dentro do limite)
 
-Área (ha) na versão vs22q (peças do arquivo = soma de `area_ha`; união = por imóvel; líquida = depois de subtrair as classes anteriores e a sobreposição entre imóveis):
+Área (ha) na versão vs22q (peças do arquivo = soma de `area_ha`; união = por imóvel; líquida = depois de subtrair as classes anteriores, os blocos anteriores e a sobreposição entre imóveis):
 
 | Classe | UF | Peças | Soma de `area_ha` | União por imóvel | Líquida |
 |---|---|---:|---:|---:|---:|
-| 9 APP | AC | 34.258 | 43.416,4 | 13.037,9 | 12.790,2 |
-| 9 APP | DF | 4.128 | 2.108,3 | 643,0 | 579,3 |
-| 9 APP | PR | 111.063 | 87.411,3 | 27.560,4 | 27.107,8 |
+| 9 APP | AC | 34.258 | 43.416,4 | 13.037,9 | 12.788,8 |
+| 9 APP | DF | 4.128 | 2.108,3 | 643,0 | 578,1 |
+| 9 APP | PR | 111.063 | 87.411,3 | 27.560,4 | 27.106,9 |
 | 9 APP | SE | 1.710 | 1.565,1 | 462,6 | 458,4 |
 | 10 AUR | DF, PR, SE | 225 | 599,0 | 599,0 | 523,3 |
-| 11 RL | AC | 8.643 | 49.029,4 | 49.023,1 | 41.567,4 |
-| 11 RL | DF | 727 | 1.372,6 | 1.372,5 | 1.071,6 |
-| 11 RL | PR | 18.448 | 65.050,6 | 65.050,2 | 47.600,5 |
-| 11 RL | SE | 895 | 3.963,6 | 3.963,6 | 3.690,5 |
+| 11 RL | AC | 8.643 | 49.029,4 | 49.023,1 | 41.568,8 |
+| 11 RL | DF | 727 | 1.372,6 | 1.372,5 | 1.072,7 |
+| 11 RL | PR | 18.448 | 65.050,6 | 65.050,2 | 47.601,5 |
+| 11 RL | SE | 895 | 3.963,6 | 3.963,6 | 3.690,6 |
+
+A regra dos Habilitados primeiro só desloca área entre classes e categorias, sem mudar o total de forma relevante (AC, vs22q: APP de 12.790,2 para 12.788,8 ha e RL de 41.567,4 para 41.568,8 ha em relação à regra anterior, em que a classe mandava em todas as categorias). Área líquida por categoria nas quatro UFs (vs22q): APP 5.672,7 (Habilitados), 3.874,8 (Analisados) e 31.384,5 ha
+(Não analisados); AUR 6,2, 84,8 e 432,3 ha; RL 12.677,7, 9.193,0 e 72.062,9 ha.
 
 A consolidação foi testada nas quatro UFs (GeoPackages, resumos, conferências e acumulados). Tempo de execução na nuvem (2 núcleos): AC ~4 min por versão, PR (129 mil peças) ~14 min por versão.
 Estimativa para o Brasil (3,5 milhões de peças por versão): algumas horas por versão, de preferência em dois ou três terminais com UFs diferentes; PA, MT, GO e MG (400 a 600 mil peças) são as mais pesadas.
@@ -67,6 +74,6 @@ A memória não foi medida nas UFs grandes (no PR, o processo chegou a ~2,3 GB; 
 
 ## Limitações e pendências
 
-- C1 e C2 (acima) a confirmar. A ordem de imóveis da mesma categoria por `cod_imovel` só muda em qual imóvel fica a área sobreposta, não o total.
+- A ordem por `cod_imovel` (mesma categoria) só muda em qual imóvel fica a área sobreposta, não o total.
 - O cruzamento traz só a VS já intersectada com APP/AUR/RL dos imóveis selecionados: imóveis fora da seleção (cancelados, não elegíveis) não entram, como definido nas etapas anteriores.
 - O cômputo dos totais nacionais (soma das classes, Florestas Públicas Não Destinadas e arranjos) fica para os passos 4 a 7.

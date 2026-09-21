@@ -10,7 +10,7 @@ Implementado na v0.6.0: classes 6 (TI), 7 (UC) e 8 (MANGUEZAL).
               Sobreposição entre UCs: proteção integral > uso sustentável; fora da APA > APA; federal > estadual > municipal; mais antiga.
     MANGUEZAL ProManguezal (IBAMA 08/05/2026), toda a VS.
     Cada classe subtrai as de maior prioridade já processadas (1, 3, 4, 5 e, para UC e MANGUEZAL, as classes 6 e 7), na versão da VS.
-    As classes 9 a 11 (APP, AUR, RL dos imóveis do CAR; por UF, com a precedência Habilitados > Analisados > Não analisados) estão em
+    As classes 9 a 11 (APP, AUR, RL dos imóveis do CAR; por UF, com os Habilitados à frente dos demais imóveis) estão em
     3b_camada1_car.py (v0.7.0), que parte das saídas deste passo.
 
 Entradas (passo 1): SAIDA_INSUMOS/IN_TI_FUNAI20260507.gpkg, IN_UC_CNUC20260507.gpkg, IN_Manguezal_ProManguezal20260508.gpkg (camadas

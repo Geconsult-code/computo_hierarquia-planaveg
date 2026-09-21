@@ -7,9 +7,11 @@ categoria (Habilitados, Analisados, Não analisados), uma peça por tema do CAR 
   da união. Por isso, antes de qualquer precedência, as peças de cada imóvel (categoria, cod_imovel, bioma da VS, ano) são unidas;
 * cada UF ocupa um bloco contínuo de FIDs em cada camada, e o processamento é por UF (uma UF, uma versão da VS, as três classes).
 
-Ordem de precedência (config_computo, decisão de 21/09/2026): a classe manda (APP > AUR > RL) e, dentro da classe, Habilitados >
-Analisados > Não analisados e, em empate, o menor cod_imovel. Cada classe subtrai as classes 1, 3, 4, 5, 6, 7 e 8 (líquidas, na versão da
-VS) e, para AUR e RL, as classes do CAR de maior prioridade da mesma UF.
+Precedência (config_computo, confirmada em 21/09/2026): os imóveis Habilitados precedem os Analisados e os Não analisados em qualquer classe;
+dentro de cada grupo a classe manda (APP > AUR > RL); entre Analisados e Não analisados a categoria desempata dentro da classe (Analisados >
+Não analisados) e, na mesma categoria, vence o menor cod_imovel. O cálculo segue "blocos" na ordem APP-Habilitados, AUR-Habilitados,
+RL-Habilitados, APP-(Analisados e Não analisados), AUR-(idem), RL-(idem); cada bloco subtrai as classes 1, 3, 4, 5, 6, 7 e 8 (líquidas, na
+versão da VS) e os blocos anteriores da mesma UF. Os resultados são reunidos por classe (9 APP, 10 AUR, 11 RL).
 """
 from __future__ import annotations
 
@@ -32,6 +34,7 @@ from .hierarquia import liquido_por_precedencia, subtrair_grandes
 
 CLASSES = ["APP", "AUR", "RL"]
 CATEGORIAS = list(cfg.CAR_CATEGORIAS_PRECEDENCIA)
+GRUPOS = [list(g) for g in cfg.CAR_GRUPOS_PRECEDENCIA]
 ROTULOS = {"APP": "9 APP", "AUR": "10 AUR", "RL": "11 RL"}
 PASTAS = {"APP": cfg.SAIDA_TIER9, "AUR": cfg.SAIDA_TIER10, "RL": cfg.SAIDA_TIER11}
 ARQUIVOS = {"APP": anteriores.ARQ_OUT_APP, "AUR": anteriores.ARQ_OUT_AUR, "RL": anteriores.ARQ_OUT_RL}
@@ -39,6 +42,11 @@ CHAVE_IMOVEL = ["categoria", "cod_imovel", "bioma_vs", "ano"]
 COLUNAS_LEITURA = ["uf", "cod_imovel", "bioma", "ano", "des_condic", "area_ha"]
 MIN_HA = 1e-6
 LIMITE_PECAS_CONFERENCIA_COMPLETA = 200_000     # acima disso, a conferência por união independente só roda com --conferencia completa
+
+
+def blocos():
+    """[(classe, índice do grupo, código do bloco)] na ordem de processamento: grupo a grupo e, em cada grupo, APP, AUR e RL."""
+    return [(cl, gi, f"{cl}_{cfg.CAR_ROTULOS_GRUPOS[gi]}") for gi in range(len(GRUPOS)) for cl in CLASSES]
 
 
 # ---------------------------------------------------------------------------
@@ -402,9 +410,11 @@ def processar_classe(classe, d, prior, cel, tag, log=None, conferencia="auto"):
 
 
 def processar_uf_versao(uf, versao, pecas, cel, log=None, conferencia="auto"):
-    """As três classes do CAR de uma UF em uma versão da VS. ``pecas`` = DataFrame de ``ler_pecas_uf`` (já com ``preparar_pecas``).
+    """Os seis blocos do CAR de uma UF em uma versão da VS. ``pecas`` = DataFrame de ``ler_pecas_uf`` (já com ``preparar_pecas``).
 
-    Devolve {classe: resultado de ``processar_classe``} (só as classes que têm peças)."""
+    Devolve {classe: dict(partes, unidades, conferencias, liquidos)} com os blocos de cada classe reunidos (só as classes que têm peças)."""
+    import geopandas as gpd
+
     if len(pecas) == 0:
         return {}
     todas = np.array(pecas["geometry"].values, dtype=object)
@@ -412,16 +422,30 @@ def processar_uf_versao(uf, versao, pecas, cel, log=None, conferencia="auto"):
     bbox = (x0 - 1e-3, y0 - 1e-3, x1 + 1e-3, y1 + 1e-3)
     fixas = anteriores.geoms_por_classe("APP", versao, bbox=bbox)          # classes 1, 3, 4, 5, 6, 7 e 8 (das saídas anteriores)
     if log:
-        log(f"  classes anteriores na caixa da UF: " + ", ".join(f"{c} {len(g):,}" for c, g in fixas))
-    saida, do_car = {}, []
-    for classe in CLASSES:
-        d = pecas[pecas["classe"] == classe].reset_index(drop=True)
+        log("  classes anteriores na caixa da UF: " + ", ".join(f"{c} {len(g):,}" for c, g in fixas))
+    partes = {c: [] for c in CLASSES}
+    unidades = {c: [] for c in CLASSES}
+    conf = {c: [] for c in CLASSES}
+    do_car = []
+    for classe, gi, cod in blocos():
+        d = pecas[(pecas["classe"] == classe) & pecas["categoria"].isin(GRUPOS[gi])].reset_index(drop=True)
         if len(d) == 0:
             continue
+        rotulo = "+".join(GRUPOS[gi])
         if log:
-            log(f"{uf} {versao} {classe}: {len(d):,} peças")
-        r = processar_classe(classe, d, list(fixas) + do_car, cel, f"{versao} {uf} {classe}", log=log, conferencia=conferencia)
-        saida[classe] = r
-        do_car = do_car + [(classe, r["liquidos"])]
+            log(f"{uf} {versao} {classe} ({rotulo}): {len(d):,} peças")
+        r = processar_classe(classe, d, list(fixas) + do_car, cel, f"{versao} {uf} {classe} ({rotulo})", log=log, conferencia=conferencia)
+        do_car = do_car + [(cod, r["liquidos"])]
+        partes[classe].append(r["partes"])
+        unidades[classe].append(r["unidades"])
+        conf[classe] += r["conferencias"]
+        del r
         gov._devolver_memoria()
+    saida = {}
+    for classe in CLASSES:
+        if not unidades[classe]:
+            continue
+        gs = [g for g in partes[classe] if len(g)]
+        gdf = gpd.GeoDataFrame(pd.concat(gs, ignore_index=True), geometry="geometry", crs=f"EPSG:{cfg.CRS_TRABALHO}") if gs else partes[classe][0]
+        saida[classe] = {"partes": gdf, "unidades": pd.concat(unidades[classe], ignore_index=True), "conferencias": conf[classe]}
     return saida

@@ -4,12 +4,13 @@ Objetivo: aplica a hierarquia do Anexo 1 às classes do CAR. A área da classe �
 selecionados do CAR (Habilitados, Analisados, Não analisados). Não refaz os cruzamentos: parte das peças do cruzamento VS x CAR
 (Cruzamento_Espacial_Vegetacao_Secundaria/VS-Cadastro_Ambiental_Rural) e as subtrai das classes de maior prioridade.
 
-Regras (config_computo, decisão de 21/09/2026):
-    * a classe manda: APP (9) > AUR (10) > RL (11), qualquer que seja a categoria do imóvel;
-    * dentro da classe, a sobreposição entre imóveis fica com Habilitados > Analisados > Não analisados e, na mesma categoria, com o
-      menor cod_imovel (o cruzamento não traz a data de cadastro);
+Regras (config_computo, confirmadas em 21/09/2026):
+    * os imóveis Habilitados precedem os Analisados e os Não analisados em qualquer classe; dentro de cada grupo a classe manda:
+      APP (9) > AUR (10) > RL (11). Ordem de cálculo: APP, AUR e RL dos Habilitados; depois APP, AUR e RL dos Analisados + Não analisados;
+    * entre Analisados e Não analisados a categoria desempata dentro da classe (Analisados > Não analisados); na mesma categoria, a
+      sobreposição entre imóveis fica com o menor cod_imovel (o cruzamento não traz a data de cadastro);
     * as peças de um mesmo imóvel se sobrepõem no cruzamento (temas de APP sobrepostos, duplicatas): são unidas por imóvel antes da precedência;
-    * cada classe subtrai as classes 1, 3, 4, 5, 6, 7 e 8 (líquidas, na versão da VS) e as classes do CAR de maior prioridade da mesma UF;
+    * cada bloco subtrai as classes 1, 3, 4, 5, 6, 7 e 8 (líquidas, na versão da VS) e os blocos do CAR anteriores da mesma UF;
     * duas versões da VS: vs22q (2022 qualificada) e vs2224q (2022 qualificada; Amazônia e Cerrado pela 2024 qualificada).
 
 Processamento por UF (uma UF, uma versão, as três classes), com retomada: cada UF x versão concluída deixa um marcador em
