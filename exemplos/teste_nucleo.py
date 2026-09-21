@@ -217,6 +217,90 @@ def teste_pedacos_vs_em_poligonos(tmp=None):
     assert at["area_ha"].iloc[0] <= area_ha([A])[0]
 
 
+def teste_config_embargos_pangia():
+    import config_computo as c
+    f = c.FONTES["embargos_pangia"]
+    assert set(f["cruzamento"]) == set(c.VS_VERSOES)
+    assert c.precedentes("OUTROS_PROJETOS") == ["RECOOPERAR", "SICAR_REGULARIZACAO"]      # MonitoRAD (inativo) não entra
+    assert c.SAIDA_TIER4.name == "Tier4_Outros_Projetos"
+    # nenhum campo pessoal segue para o cômputo
+    assert not set(c.CAMPOS_EMBARGO_PANGIA.values()) & set(c.COLUNAS_PESSOAIS_PANGIA)
+    for campo in ("nome_embar", "cpf_cnpj_e", "nome_imove"):
+        assert campo in c.COLUNAS_PESSOAIS_PANGIA
+
+
+def teste_embargos_harmonizar():
+    import pandas as pd
+    import config_computo as c
+    from computo.embargos import harmonizar
+    g = pd.DataFrame({"num_tad": ["A1", "A2", "A3"], "serie_tad": [" ", "B", "C"], "seq_tad": [0, 5, 7], "uf": ["PA", "AM", "MT"],
+                      "cod_munici": [1, 2, 3], "municipio": ["X", " ", "Z"], "sit_desmat": ["D", "N", "D"],
+                      "tipo_area": ["Desmatamento", " ", "Não se aplica"], "des_tipo_b": ["Amazonia", " ", "Cerrado"],
+                      "operacao": [" ", "ONDA VERDE", " "],
+                      "dat_embarg": pd.to_datetime(["2015-03-02", "2001-01-01", "1980-05-05"], utc=True)})
+    h = harmonizar(g, c.CAMPOS_EMBARGO_PANGIA, c.PLACEHOLDERS_PANGIA, c.DATAS_SENTINELA, c.ANO_MIN, c.ANO_MAX)
+    assert h["serie_tad"].isna().tolist() == [True, False, False] and h["municipio_fonte"].isna().tolist() == [False, True, False]
+    assert h["tipo_area"].isna().tolist() == [False, True, True]                 # vazio e "Não se aplica" viram nulo
+    assert h["ano_embargo"].tolist()[0] == 2015 and pd.isna(h["ano_embargo"].iloc[1]) and pd.isna(h["ano_embargo"].iloc[2])
+    assert h["data_embargo"].iloc[0] == "2015-03-02" and pd.isna(h["data_embargo"].iloc[1])   # 2001-01-01 = data nula do sistema
+    assert not [x for x in h.columns if x in c.COLUNAS_PESSOAIS_PANGIA]
+
+
+def teste_pedacos_cruzamento_embargos():
+    """Peças VS x embargo: ligação por idx_embargo (FID - 1), conferência da chave e união por embargo."""
+    import tempfile
+    import warnings
+    from pathlib import Path
+    import geopandas as gpd
+    import numpy as np
+    import pandas as pd
+    import shapely
+    from computo.embargos import ler_pedacos_cruzamento, uniao_por_id
+    from computo.geometria import area_ha
+    d = Path(tempfile.mkdtemp())
+    box = lambda x0, y0, x1, y1: shapely.segmentize(shapely.box(x0, y0, x1, y1), 0.005)
+    chaves = pd.DataFrame({"id_proj": ["EMB-000001", "EMB-000002"], "num_tad": ["T1", "T2"], "serie_tad": ["", "S"], "seq_tad": ["0", "9"]},
+                          index=pd.Index([1, 2], name="fid_orig"))
+    pecas = gpd.GeoDataFrame({"idx_embargo": [0, 0, 1, 1], "num_tad": ["T1", "T1", "T2", "T2"], "serie_tad": [" ", " ", "S", "S"],
+                              "seq_tad": [0, 0, 9, 9], "vs_id": [10, 11, 12, 13], "vs_ano": ["2022"] * 4,
+                              "vs_bioma": ["Cerrado", "Cerrado", "Amazonia", "Amazonia"], "vs_fonte": ["2022_qualificada"] * 4},
+                             geometry=[box(-50, -10, -49.99, -9.99), box(-49.995, -10, -49.985, -9.99),       # 1 e 2 se sobrepõem
+                                       box(-40, -5, -39.99, -4.99), box(-39.9, -5, -39.9 + 1e-7, -5 + 1e-7)],  # 4 é desprezível
+                             crs=4674)
+    f = d / "cruz.gpkg"
+    pecas.to_file(f, layer="L", driver="GPKG")
+    ped = ler_pedacos_cruzamento(f, "L", chaves)
+    assert len(ped) == 3 and set(ped["id_proj"]) == {"EMB-000001", "EMB-000002"}              # a peça desprezível saiu
+    u = uniao_por_id(ped, ["EMB-000001", "EMB-000002", "EMB-000003"])
+    assert u[2] is None
+    esperado = area_ha([shapely.union_all([pecas.geometry[0], pecas.geometry[1]])])[0]
+    assert abs(area_ha([u[0]])[0] - esperado) < 1e-6 * esperado < area_ha([pecas.geometry[0]])[0] + area_ha([pecas.geometry[1]])[0]
+    # arquivo de embargos trocado: a chave não confere -> erro claro
+    ruim = chaves.copy()
+    ruim["num_tad"] = ["X1", "X2"]
+    try:
+        ler_pedacos_cruzamento(f, "L", ruim)
+    except ValueError as e:
+        assert "num_tad" in str(e)
+    else:
+        raise AssertionError("deveria recusar chave diferente")
+
+
+def teste_tabela_celulas_sem_vs():
+    import geopandas as gpd
+    import shapely
+    from computo.territorio import Limites, tabela_celulas
+    uf = gpd.GeoDataFrame({"SIGLA_UF": ["AA", "BB"]}, geometry=[shapely.box(-51, -11, -50, -9), shapely.box(-50, -11, -49, -9)], crs=4674)
+    bio = gpd.GeoDataFrame({"Bioma": ["Cerrado"]}, geometry=[shapely.box(-51, -11, -49, -9)], crs=4674)
+    lim = Limites(uf, "SIGLA_UF", bio, "Bioma")
+    g = shapely.segmentize(shapely.box(-50.2, -10.5, -49.8, -10.0), 0.005)
+    liq = shapely.segmentize(shapely.box(-50.2, -10.5, -50.0, -10.0), 0.005)
+    cel = tabela_celulas([g, None, g], [liq, None, None], lim)                  # None = embargo sem VS na versão
+    assert set(cel["i"]) == {0, 2} and set(cel["uf"]) == {"AA", "BB"}
+    assert list(cel.columns) == ["i", "uf", "bioma", "area_completa_ha", "area_liquida_ha"]
+    assert cel[cel["i"] == 2]["area_liquida_ha"].sum() == 0 and cel[cel["i"] == 0]["area_liquida_ha"].sum() > 0
+
+
 def teste_config_vs_camadas():
     import config_computo as c
     assert set(c.VS_CAMADAS) == set(c.VS_VERSOES)

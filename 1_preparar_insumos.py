@@ -3,7 +3,7 @@
 Objetivo: aplica a elegibilidade de cada fonte, padroniza CRS (EPSG:4674) e campos, repara geometrias
 e gera o insumo elegível de cada classe (prefixo IN_), sempre com os POLÍGONOS INTEIROS.
 
-Implementado nesta versão (v0.3.0): RECOOPERAR (IBAMA 2026, Tier-1) e CAR_REGULARIZACAO (classe 3).
+Implementado nesta versão (v0.4.0): RECOOPERAR (IBAMA 2026, Tier-1), CAR_REGULARIZACAO (classe 3) e EMBARGOS_PANGIA (classe 4).
     RECOOPERAR
     - Elegibilidade por categoria (config_computo.ELEGIBILIDADE_RECOOPERAR).
     - Campos harmonizados, sem dados pessoais (config_computo.CAMPOS_RECOOPERAR / COLUNAS_PESSOAIS_RECOOPERAR).
@@ -13,7 +13,12 @@ Implementado nesta versão (v0.3.0): RECOOPERAR (IBAMA 2026, Tier-1) e CAR_REGUL
     - Área a recompor de APP e RL dos imóveis "Analisado, em regularização ambiental" (ELEGIBILIDADE_CAR_REG).
     - Polígonos inteiros; VS qualificada (2 versões) cruzada aqui com as camadas brutas do INPE (VS_CAMADAS):
       atributos vs22q_*/vs2224q_* na tabela e peças "VS x polígono" em arquivo próprio (usadas no passo 2).
-Ainda não implementado: ICMBio (adiado), OR, TI, UC, ProManguezal, PANGIA.
+    EMBARGOS_PANGIA (classe 4, Outros projetos)
+    - Embargos IBAMA/PANGIA de 20/09/2026 (50.674 polígonos, sem campo de status: entram todos) com campos sem dados
+      pessoais (CAMPOS_EMBARGO_PANGIA). Só os embargos com VS qualificada dentro seguem; a classe 4 conta a VS DENTRO do embargo.
+    - As peças "VS x embargo" vêm do cruzamento já feito (FONTES["embargos_pangia"]["cruzamento"], duas versões) e são
+      conferidas contra o arquivo de embargos (chave num_tad + serie_tad + seq_tad; peça dentro do polígono).
+Ainda não implementado: ICMBio (adiado), OR, TI, UC, ProManguezal.
 
 Entradas: FONTES["recooperar"]["arquivo"] (Projetos_com_VegSec\\IBAMA_Projetos_Recooperar_2026_com_VegSec.gpkg);
           FONTES["sicar_regularizacao"]["arquivo"] e as camadas de VS (Vegetacao_Secundaria_INPE).
@@ -24,9 +29,12 @@ Saídas (em config_computo.SAIDA_INSUMOS):
     IN_CAR_Regularizacao_Junho26.gpkg        camada IN_CAR_REG (elegíveis, polígonos inteiros, atributos de VS)
     IN_CAR_Regularizacao_Junho26_VS.gpkg     peças VS x polígono (vs22q_pedacos, vs2224q_pedacos)
     IN_CAR_Regularizacao_Junho26_resumo.csv / _excluidos.csv
+    IN_Embargos_PANGIA_20260920.gpkg         camada IN_EMBARGOS_PANGIA (embargos inteiros com VS em alguma versão; atributos de VS)
+    IN_Embargos_PANGIA_20260920_VS.gpkg      peças VS x embargo (vs22q_pedacos, vs2224q_pedacos)
+    IN_Embargos_PANGIA_20260920_resumo.csv / _excluidos.csv (embargos sem VS)
     _log_passo1.txt
 
-Execução:  python 1_preparar_insumos.py [recooperar] [car_regularizacao]   (sem argumento: todas)
+Execução:  python 1_preparar_insumos.py [recooperar] [car_regularizacao] [embargos_pangia]   (sem argumento: todas)
 """
 from __future__ import annotations
 
@@ -37,13 +45,15 @@ import pandas as pd
 
 import config_computo as cfg
 from computo import elegibilidade as el
+from computo import embargos as emb
 from computo import geometria as geo
 from computo import io_dados as io
 from computo import vs as vsm
 
-FONTES_IMPLEMENTADAS = ["recooperar", "car_regularizacao"]
+FONTES_IMPLEMENTADAS = ["recooperar", "car_regularizacao", "embargos_pangia"]
 NOME_ARQ = "IN_Recooperar_2026"
 NOME_ARQ_CAR = "IN_CAR_Regularizacao_Junho26"
+NOME_ARQ_EMB = "IN_Embargos_PANGIA_20260920"
 
 
 def _col(g, nome):
@@ -245,6 +255,106 @@ def preparar_car_regularizacao(log):
     return ele, ped
 
 
+def preparar_embargos_pangia(log):
+    """Classe 4: embargos PANGIA com VS qualificada dentro (a classe conta só a VS dentro do embargo)."""
+    import time
+
+    import geopandas as gpd
+
+    fonte = cfg.FONTES["embargos_pangia"]
+    arq = cfg.RAIZ / fonte["arquivo"]
+    if not arq.exists():
+        raise FileNotFoundError(f"Não encontrei {arq}.")
+    E = cfg.ELEGIBILIDADE_EMBARGO_PANGIA
+    lidas = sorted(set(cfg.CAMPOS_EMBARGO_PANGIA.values()) | {"dat_embarg"})      # as colunas pessoais nem são lidas
+    log(f"lendo {arq}")
+    g = io.ler_camada(arq, fonte["camada"], colunas=lidas, com_fid=True)
+    geoms, invalida = geo.reparar(g.geometry.values)
+    g["geometry"] = geoms
+    sem_geom = np.array([x is None or x.is_empty for x in geoms])
+    log(f"  {len(g)} embargos | sem geometria {int(sem_geom.sum())} | reparados {int(invalida.sum())}")
+    h = emb.harmonizar(g, cfg.CAMPOS_EMBARGO_PANGIA, cfg.PLACEHOLDERS_PANGIA, cfg.DATAS_SENTINELA, cfg.ANO_MIN, cfg.ANO_MAX)
+    out = pd.DataFrame(index=g.index)
+    out["id_proj"] = "EMB-" + g["fid_orig"].astype(str).str.zfill(6)
+    out["fonte_dado"] = "IBAMA_PANGIA_20260920"
+    out["categoria"] = "embargo_pangia"
+    out["categoria_nome"] = cfg.NOME_EMBARGO_PANGIA
+    out["fid_orig"] = g["fid_orig"]
+    for c in h.columns:
+        out[c] = h[c]
+    out["area_ha_geo"] = geo.area_ha(geoms)
+    out["geom_reparada"] = invalida.astype(int)
+    assert out["id_proj"].is_unique, "id_proj repetido"
+    chaves = out.set_index("fid_orig")[["id_proj", "num_tad", "serie_tad", "seq_tad"]]
+    assert chaves.index.is_unique
+
+    # ---- peças VS x embargo (cruzamento já feito) e atributos de VS ----
+    ped, at = {}, {}
+    for p, rel in fonte["cruzamento"].items():
+        t0 = time.time()
+        f = cfg.RAIZ / rel
+        if not f.exists():
+            raise FileNotFoundError(f"Não encontrei {f}. Rode o cruzamento VS x embargos antes.")
+        log(f"{p} ({cfg.VS_VERSOES[p]}): lendo {f.name}")
+        d = emb.ler_pedacos_cruzamento(f, fonte["camada_cruzamento"], chaves, E["area_min_ha"])
+        # cada peça tem de estar dentro do embargo a que pertence (a chave sozinha não pega arquivo reordenado)
+        pos = pd.Series(np.arange(len(out)), index=out["id_proj"])
+        alvo = geoms[pos.loc[d["id_proj"]].to_numpy()]
+        fora = geo.area_ha([geo.so_poligonos(x) for x in geo.diferenca_robusta(d["geometry"].values, alvo)])
+        assert fora.sum() < 1e-3, f"{p}: {fora.sum():.4f} ha de peças fora do embargo a que pertencem"
+        ped[p] = d
+        a = emb.uniao_por_id(d, out["id_proj"])
+        area_vs = geo.area_ha(a)
+        out[f"{p}_tem"] = (area_vs > 0).astype(int)
+        out[f"{p}_area_ha"] = area_vs
+        out[f"{p}_pct"] = np.where(out["area_ha_geo"] > 0, area_vs / out["area_ha_geo"] * 100.0, 0.0)
+        out[f"{p}_n_pol"] = d.drop_duplicates(["id_proj", "vs_camada", "vs_id"]).groupby("id_proj").size().reindex(out["id_proj"]).fillna(0).astype(int).to_numpy()
+        for b in cfg.BIOMAS_VS:
+            sb = d[d["vs_bioma"] == b]
+            ub = emb.uniao_por_id(sb, out["id_proj"]) if len(sb) else np.array([None] * len(out), dtype=object)
+            out[f"{p}_ha_{b.lower()}"] = geo.area_ha(ub)
+        log(f"  {p}: {len(d)} peças em {int(out[f'{p}_tem'].sum())} embargos, VS nos embargos (soma das uniões) {area_vs.sum():,.1f} ha "
+            f"(peças fora do embargo {fora.sum():.6f} ha; {time.time() - t0:.0f}s)")
+    res = gpd.GeoDataFrame(out, geometry=geoms, crs=g.crs)
+    pessoais = [c for c in res.columns if c in cfg.COLUNAS_PESSOAIS_PANGIA or any(k in c.lower() for k in ("cpf", "cnpj", "nome_", "editor"))]
+    assert not pessoais, f"possível dado pessoal nas saídas: {pessoais}"
+
+    # ---- saídas ----
+    tem = np.zeros(len(res), dtype=bool)
+    for p in cfg.VS_VERSOES:
+        tem |= res[f"{p}_tem"].to_numpy() == 1
+    tem &= ~sem_geom
+    ele = res[tem].copy().reset_index(drop=True)
+    cfg.SAIDA_INSUMOS.mkdir(parents=True, exist_ok=True)
+    io.gravar_camada(ele, cfg.SAIDA_INSUMOS / f"{NOME_ARQ_EMB}.gpkg", "IN_EMBARGOS_PANGIA", primeira=True)
+    arq_vs = cfg.SAIDA_INSUMOS / f"{NOME_ARQ_EMB}_VS.gpkg"
+    for k, p in enumerate(cfg.VS_VERSOES):
+        d = ped[p].copy()
+        d["area_ha"] = geo.area_ha(d["geometry"].values)
+        io.gravar_camada(gpd.GeoDataFrame(d, geometry="geometry", crs=res.crs), arq_vs, f"{p}_pedacos", primeira=(k == 0))
+    exc = res[~tem].drop(columns="geometry").copy()
+    exc["motivo_elegibilidade"] = np.where(sem_geom[~tem], "sem geometria", "sem VS qualificada dentro do embargo (vs22q e vs2224q)")
+    exc[["id_proj", "num_tad", "serie_tad", "uf_fonte", "data_embargo", "area_ha_geo", "motivo_elegibilidade", "fid_orig"]].to_csv(
+        cfg.SAIDA_INSUMOS / f"{NOME_ARQ_EMB}_excluidos.csv", index=False, encoding="utf-8-sig")
+    linhas = []
+    for chave in ["TOTAL"] + sorted(res["uf_fonte"].dropna().unique()):
+        sub = res if chave == "TOTAL" else res[res["uf_fonte"] == chave]
+        e_ = sub[tem[sub.index]]
+        r = {"grupo": chave if chave == "TOTAL" else f"uf/{chave}", "n_embargos": len(sub), "n_com_vs": len(e_),
+             "area_embargos_ha": sub["area_ha_geo"].sum(), "area_embargos_com_vs_ha": e_["area_ha_geo"].sum()}
+        for p in cfg.VS_VERSOES:
+            r[f"n_com_{p}"] = int(sub[f"{p}_tem"].sum())
+            r[f"{p}_vs_nos_embargos_ha"] = sub[f"{p}_area_ha"].sum()
+        linhas.append(r)
+    resumo = pd.DataFrame(linhas)
+    resumo.to_csv(cfg.SAIDA_INSUMOS / f"{NOME_ARQ_EMB}_resumo.csv", index=False, encoding="utf-8-sig")
+    log("\n" + resumo.head(1).round(1).to_string(index=False))
+    log(f"IN_EMBARGOS_PANGIA: {len(ele)} embargos com VS ({len(res) - len(ele)} sem VS ficam fora), "
+        f"{ele['area_ha_geo'].sum():,.1f} ha de embargos inteiros (referência: a classe 4 conta só a VS dentro deles)")
+    log(f"gravado: {cfg.SAIDA_INSUMOS / (NOME_ARQ_EMB + '.gpkg')}")
+    return ele, ped
+
+
 def main(argv=None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     pedidas = [a.lower() for a in argv] or FONTES_IMPLEMENTADAS
@@ -263,6 +373,8 @@ def main(argv=None) -> int:
         preparar_recooperar(log)
     if "car_regularizacao" in pedidas:
         preparar_car_regularizacao(log)
+    if "embargos_pangia" in pedidas:
+        preparar_embargos_pangia(log)
     log("fim")
     return 0
 

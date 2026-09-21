@@ -5,11 +5,12 @@ reporte da meta nacional do Planaveg 2025-2028, seguindo o Relatório Técnico *
 Monitoramento Geoespacial e Reporte de Áreas em Processo de Recuperação da Vegetação Nativa*
 (MMA / Conaveg, setembro de 2026).
 
-> **Status: v0.3.1 - classes 1 (Recooperar 2026) e 3 (SICAR-regularização) implementadas.** Passos 1 e 2
-> funcionam para essas classes (área completa dos polígonos elegíveis, atributos de VS mantidos na tabela; a
-> classe 3 subtrai a 1). As demais classes e os passos 3 a 7 seguem como esqueleto. Regras do Recooperar e da
-> classe 3 confirmadas em 21/09/2026; decisões abertas das demais classes estão em `PENDENCIAS`, no arquivo
-> `config_computo.py`. Método e saídas: `docs/tier1_recooperar.md` e `docs/tier3_car_regularizacao.md`.
+> **Status: v0.4.0 - classes 1 (Recooperar 2026), 3 (SICAR-regularização) e 4 (Outros projetos: embargos PANGIA)
+> implementadas.** Passos 1 e 2 funcionam para essas classes (classes 1 e 3: área completa dos polígonos elegíveis,
+> atributos de VS na tabela; classe 4: só a VS dentro do embargo; cada classe subtrai as anteriores). As demais classes
+> (ICMBio, OR) e os passos 3 a 7 seguem como esqueleto. Regras do Recooperar e da classe 3 confirmadas em 21/09/2026;
+> as da classe 4 (E1 a E3) estão adotadas, a confirmar. Decisões abertas: `PENDENCIAS`, em `config_computo.py`. Método
+> e saídas: `docs/tier1_recooperar.md`, `docs/tier3_car_regularizacao.md` e `docs/tier4_outros_projetos.md`.
 
 ## Onde este repositório se encaixa
 
@@ -35,8 +36,8 @@ Monitoramento Geoespacial e Reporte de Áreas em Processo de Recuperação da Ve
 
 | Passo | Script | Função |
 |---|---|---|
-| 1 | `1_preparar_insumos.py` | Aplica elegibilidade, padroniza CRS e campos, repara geometrias (**implementado: Recooperar e CAR-regularização**) |
-| 2 | `2_camada2_projetos.py` | Hierarquia entre os projetos e atribuição de UF e bioma (**implementado: classes 1 Recooperar e 3 CAR-regularização**; demais pendentes) |
+| 1 | `1_preparar_insumos.py` | Aplica elegibilidade, padroniza CRS e campos, repara geometrias (**implementado: Recooperar, CAR-regularização e embargos PANGIA**) |
+| 2 | `2_camada2_projetos.py` | Hierarquia entre os projetos e atribuição de UF e bioma (**implementado: classes 1 Recooperar, 3 CAR-regularização e 4 Outros projetos/PANGIA**; demais pendentes) |
 | 3 | `3_camada1_vs_governanca.py` | Consolida os cruzamentos VS x TI, UC, manguezais e APP/AUR/RL |
 | 4 | `4_aplicar_hierarquia.py` | Aplica a ordem completa do Anexo 1 e remove Florestas Públicas Não Destinadas |
 | 5 | `5_desagregacao_arranjos.py` | Classifica nos arranjos da Figura 4, por UF e bioma |
@@ -58,18 +59,20 @@ computo_hierarquia-planaveg/
 └── exemplos/teste_nucleo.py # teste de integridade da configuração
 ```
 
-## Executar as classes 1 e 3 (Recooperar 2026 e SICAR-regularização)
+## Executar as classes 1, 3 e 4 (Recooperar 2026, SICAR-regularização e embargos PANGIA)
 
 ```
 conda activate geo
-python exemplos/teste_nucleo.py        # 18 testes sintéticos
-python 1_preparar_insumos.py           # -> Computo_Planaveg_2026\Insumos (Recooperar e CAR-regularização, com a VS)
-python 2_camada2_projetos.py           # -> ...\Tier1_Recooperar e ...\Tier3_CAR_Regularizacao
-# ou por classe:  python 1_preparar_insumos.py car_regularizacao ;  python 2_camada2_projetos.py car_regularizacao
+python exemplos/teste_nucleo.py        # 22 testes sintéticos
+python 1_preparar_insumos.py           # -> Computo_Planaveg_2026\Insumos (Recooperar, CAR-regularização e embargos PANGIA, com a VS)
+python 2_camada2_projetos.py           # -> ...\Tier1_Recooperar, ...\Tier3_CAR_Regularizacao e ...\Tier4_Outros_Projetos
+# ou por classe:  python 1_preparar_insumos.py embargos_pangia ;  python 2_camada2_projetos.py outros_projetos
 ```
 
-Os caminhos vêm de `config_computo.py` (ou das variáveis `PLANAVEG_RAIZ` e `PLANAVEG_SAIDA`). A classe 3 precisa da classe 1
-já processada (subtrai `P2_RECOOPERAR`).
+Os caminhos vêm de `config_computo.py` (ou das variáveis `PLANAVEG_RAIZ` e `PLANAVEG_SAIDA`). Cada classe subtrai as anteriores
+(a 3 subtrai `P2_RECOOPERAR`; a 4 subtrai as classes 1 e 3), por isso devem ser processadas na ordem. Cada classe grava o
+próprio log na sua pasta (`_log_passo2.txt`, `_log_passo2_car.txt`, `_log_passo2_outros.txt`). O passo 1 do PANGIA usa o cruzamento
+VS x embargos já feito (`Cruzamento_Espacial_Vegetacao_Secundaria\VS-Areas_Embargadas`); a classe 4 leva ~25 min (UF x bioma).
 
 ## Instalação
 
@@ -90,4 +93,4 @@ Ficam em `GEODATABASE\GEOPACKAGE` (caminho em `config_computo.py`). O inventári
 ## Licença e citação
 
 MIT (ver `LICENSE`). Para citar: Braga Meira, M. (2026). *Cômputo Planaveg 2026 - hierarquia de
-sobreposições* (v0.3.1) [software]. Geoconsult Ltda. Ver `CITATION.cff`.
+sobreposições* (v0.4.0) [software]. Geoconsult Ltda. Ver `CITATION.cff`.

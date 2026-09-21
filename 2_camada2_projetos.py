@@ -11,7 +11,11 @@ Implementado nesta versão (v0.2.0): classe 1, RECOOPERAR (Tier-1).
 Implementado na v0.3.0: classe 3, SICAR-REGULARIZAÇÃO (CAR_REGULARIZACAO; área a recompor de APP e RL).
     Subtrai a classe 1 (líquido do Recooperar, P2_RECOOPERAR) e resolve a sobreposição dentro da classe por
     precedência (APP > RL averbada > RL aprovada não averbada > RL proposta). Polígonos inteiros, com VS na tabela.
-Ainda não implementado: classes 4 (Outros projetos) e 5 (OR).
+Implementado na v0.4.0: classe 4, OUTROS_PROJETOS (por ora só os embargos PANGIA; ICMBio adiado).
+    Só a VS DENTRO do embargo entra (decisão de 20/09/2026). Subtrai as classes 1 e 3 e resolve a sobreposição entre embargos
+    (o mais antigo fica com a área). A geometria da classe depende da versão da VS (vs22q, vs2224q): há um conjunto de
+    polígonos líquidos por versão.
+Ainda não implementado: classe 5 (OR).
 
 Entradas: SAIDA_INSUMOS/IN_Recooperar_2026.gpkg (passo 1); peças VS x projeto (FONTES["recooperar"]["cruzamento"]);
           IBGE_Limite_Estados e IBGE_Limite_Biomas.
@@ -31,7 +35,16 @@ Saídas da classe 3 (em config_computo.SAIDA_TIER3):
     T3_resumo.csv, T3_resumo_categoria_tema_uf_bioma.csv, T3_areas_uf_bioma.csv, T3_conferencias.csv,
     T3_acumulado_classes_1_e_3.csv (área líquida acumulada das classes já processadas, por UF e bioma)
 
-Execução:  python 2_camada2_projetos.py [RECOOPERAR] [CAR_REGULARIZACAO]   (sem argumento: todas, na ordem)
+Saídas da classe 4 (em config_computo.SAIDA_TIER4):
+    P2_Outros_Projetos_PANGIA_20260920.gpkg
+        P2_OUTROS_PROJETOS_poligonos  embargos inteiros (referência) + VS no embargo, sobreposições e área líquida por versão
+        P2_OUTROS_PROJETOS_vs22q      polígonos líquidos (VS 2022), disjuntos entre si e das classes 1 e 3
+        P2_OUTROS_PROJETOS_vs2224q    idem, VS 2022-2024
+    T4_resumo.csv, T4_resumo_uf_bioma.csv, T4_areas_uf_bioma.csv, T4_conferencias.csv,
+    T4_acumulado_classes_1_3_4.csv (área líquida acumulada das classes 1, 3 e 4, por versão, UF e bioma)
+
+Execução:  python 2_camada2_projetos.py [RECOOPERAR] [CAR_REGULARIZACAO] [OUTROS_PROJETOS]   (sem argumento: todas, na ordem)
+Cada classe grava o próprio log na sua pasta (_log_passo2.txt, _log_passo2_car.txt, _log_passo2_outros.txt).
 """
 from __future__ import annotations
 
@@ -43,18 +56,22 @@ import shapely
 from shapely.strtree import STRtree
 
 import config_computo as cfg
+from computo import embargos as emb
 from computo import geometria as geo
 from computo import io_dados as io
 from computo.hierarquia import liquido_por_precedencia, subtrair_precedentes
 from computo.territorio import Limites, resumo_uf_bioma_por_poligono, tabela_celulas
 from computo.vs import PedacosVS, area_vs   # noqa: F401
 
-CLASSES_IMPLEMENTADAS = ["RECOOPERAR", "CAR_REGULARIZACAO"]
+CLASSES_IMPLEMENTADAS = ["RECOOPERAR", "CAR_REGULARIZACAO", "OUTROS_PROJETOS"]
 ARQ_IN = "IN_Recooperar_2026.gpkg"
 ARQ_OUT = "P2_Recooperar_2026.gpkg"
 ARQ_IN_CAR = "IN_CAR_Regularizacao_Junho26.gpkg"
 ARQ_VS_CAR = "IN_CAR_Regularizacao_Junho26_VS.gpkg"
 ARQ_OUT_CAR = "P2_CAR_Regularizacao_Junho26.gpkg"
+ARQ_IN_EMB = "IN_Embargos_PANGIA_20260920.gpkg"
+ARQ_VS_EMB = "IN_Embargos_PANGIA_20260920_VS.gpkg"
+ARQ_OUT_EMB = "P2_Outros_Projetos_PANGIA_20260920.gpkg"
 
 
 def _carregar_limites():
@@ -207,20 +224,30 @@ def _pedacos_car():
     return saida
 
 
-def _geoms_classes_anteriores(codigo):
-    """Geometrias líquidas (disjuntas) das classes ativas de maior prioridade já processadas."""
-    arquivos = {"RECOOPERAR": (cfg.SAIDA_TIER1 / ARQ_OUT, "P2_RECOOPERAR")}
-    geoms, usados = [], []
+def _arquivos_classes():
+    return {"RECOOPERAR": (cfg.SAIDA_TIER1 / ARQ_OUT, "P2_RECOOPERAR"),
+            "SICAR_REGULARIZACAO": (cfg.SAIDA_TIER3 / ARQ_OUT_CAR, "P2_CAR_REGULARIZACAO")}
+
+
+def _geoms_por_classe(codigo):
+    """Lista de (classe, geometrias líquidas disjuntas) das classes ativas de maior prioridade já processadas."""
+    arquivos = _arquivos_classes()
+    saida = []
     for c in cfg.precedentes(codigo):
         if c not in arquivos:
             raise NotImplementedError(f"classe anterior {c} ainda não processada (necessária para subtrair)")
         arq, camada = arquivos[c]
         if not arq.exists():
             raise FileNotFoundError(f"Não encontrei {arq}. Rode a classe {c} antes.")
-        g = io.ler_camada(arq, camada)
-        geoms.extend(list(g.geometry.values))
-        usados.append(c)
-    return np.array(geoms, dtype=object), usados
+        saida.append((c, np.array(io.ler_camada(arq, camada).geometry.values, dtype=object)))
+    return saida
+
+
+def _geoms_classes_anteriores(codigo):
+    """Geometrias líquidas (disjuntas) das classes ativas de maior prioridade já processadas."""
+    por_classe = _geoms_por_classe(codigo)
+    geoms = np.concatenate([g for _, g in por_classe]) if por_classe else np.array([], dtype=object)
+    return geoms, [c for c, _ in por_classe]
 
 
 def classe_car_regularizacao(log):
@@ -394,28 +421,257 @@ def classe_car_regularizacao(log):
     return pol, liq, cel, resumo, conf
 
 
+def classe_outros_projetos(log, so_primeiros=None):
+    """Classe 4: embargos PANGIA. A área da classe é a VS dentro do embargo (por versão da VS).
+
+    so_primeiros: uso interno de teste (só os N primeiros embargos); não usar no cômputo."""
+    import geopandas as gpd
+    import pyogrio
+
+    P = list(cfg.VS_VERSOES)
+    arq_in, arq_vs = cfg.SAIDA_INSUMOS / ARQ_IN_EMB, cfg.SAIDA_INSUMOS / ARQ_VS_EMB
+    for a in (arq_in, arq_vs):
+        if not a.exists():
+            raise FileNotFoundError(f"Não encontrei {a}. Rode 1_preparar_insumos.py embargos_pangia antes.")
+    cfg.SAIDA_TIER4.mkdir(parents=True, exist_ok=True)
+    g = io.ler_camada(arq_in, "IN_EMBARGOS_PANGIA")
+    if so_primeiros:
+        g = g.iloc[:so_primeiros].reset_index(drop=True)
+    n = len(g)
+    ids = g["id_proj"].to_numpy()
+    emb_geoms = np.array(g.geometry.values, dtype=object)
+    log(f"IN_EMBARGOS_PANGIA: {n} embargos com VS em alguma versão")
+    por_classe = _geoms_por_classe("OUTROS_PROJETOS")
+    prec = np.concatenate([x for _, x in por_classe])
+    log(f"classes anteriores subtraídas: {[c for c, _ in por_classe]} ({len(prec)} polígonos líquidos)")
+
+    # precedência entre embargos (E2): mais antigo primeiro, depois FID
+    dias = (pd.to_datetime(g["data_embargo"], errors="coerce") - pd.Timestamp("1970-01-01")).dt.days.fillna(1e9).to_numpy()
+    ranking = pd.DataFrame({"dt": dias, "fid": g["fid_orig"].astype(int), "i": np.arange(n)}).sort_values(["dt", "fid", "i"]).reset_index(drop=True)
+    prioridade = np.empty(n, dtype=int)
+    prioridade[ranking["i"].to_numpy()] = np.arange(n)
+
+    log("carregando limites IBGE...")
+    lim = _carregar_limites()
+    R = {}
+    for p in P:
+        log(f"--- {p} ({cfg.VS_VERSOES[p]}) ---")
+        d = pyogrio.read_dataframe(str(arq_vs), layer=f"{p}_pedacos", columns=["id_proj"])
+        G = emb.uniao_por_id(d, ids)                                   # VS dentro de cada embargo
+        vivo = np.array([x is not None for x in G])
+        a_vs = geo.area_ha(G)
+        log(f"embargos com VS: {int(vivo.sum())} | VS nos embargos (soma, antes de subtrair) {a_vs.sum():,.1f} ha")
+        # 1) subtrai as classes anteriores, uma por vez (a soma é a mesma; separar mostra o efeito de cada classe)
+        atual = G.copy()
+        retiradas = {}
+        for cod, gp in por_classe:
+            iv = np.where(np.array([x is not None for x in atual]))[0]
+            rest, ret = subtrair_precedentes(atual[iv], gp)
+            atual[iv] = rest
+            r = np.zeros(n)
+            r[iv] = ret
+            retiradas[cod] = r
+            log(f"  sobreposição com {cod}: {r.sum():,.2f} ha em {(r > 0).sum()} embargos")
+        sobre_prec = sum(retiradas.values())
+        # 2) sobreposição entre embargos: a área fica com o mais antigo
+        iv = np.where(np.array([x is not None for x in atual]))[0]
+        liquidos = np.array([None] * n, dtype=object)
+        sobre_intra = np.zeros(n)
+        n_prec = np.zeros(n, dtype=int)
+        if len(iv):
+            pv = np.argsort(np.argsort(prioridade[iv]))
+            liq_v, sob_v, np_v = liquido_por_precedencia(atual[iv], pv)
+            liquidos[iv], sobre_intra[iv], n_prec[iv] = liq_v, sob_v, np_v
+        a_liq = geo.area_ha(liquidos)
+        log(f"  sobreposição entre embargos: {sobre_intra.sum():,.2f} ha | líquida {a_liq.sum():,.1f} ha")
+        # 3) UF x bioma
+        log("  UF x bioma:")
+        cel = tabela_celulas(G, liquidos, lim, log=log, cada=1000)
+        principais = resumo_uf_bioma_por_poligono(cel, n)
+        R[p] = dict(G=G, vivo=vivo, a_vs=a_vs, retiradas=retiradas, sobre_prec=sobre_prec, sobre_intra=sobre_intra, n_prec=n_prec,
+                    liquidos=liquidos, a_liq=a_liq, cel=cel, principais=principais)
+
+    # ---- tabela de polígonos (embargos inteiros como referência) ----
+    pol = g.reset_index(drop=True).copy()
+    pol["prec_ordem"] = prioridade + 1
+    for p in P:
+        r = R[p]
+        pol[f"{p}_area_vs_embargo_ha"] = r["a_vs"]
+        for cod, v in r["retiradas"].items():
+            pol[f"{p}_sobreposta_{cod.lower()}_ha"] = v
+        pol[f"{p}_sobreposta_classes_anteriores_ha"] = r["sobre_prec"]
+        pol[f"{p}_n_precedentes_sobrepostos"] = r["n_prec"]
+        pol[f"{p}_sobreposta_na_classe_ha"] = r["sobre_intra"]
+        pol[f"{p}_area_liquida_ha"] = r["a_liq"]
+        pr = r["principais"]
+        pol[f"{p}_uf_principal"] = [x[0] for x in pr]
+        pol[f"{p}_ufs"] = [x[1] for x in pr]
+        pol[f"{p}_bioma_principal"] = [x[2] for x in pr]
+        pol[f"{p}_biomas"] = [x[3] for x in pr]
+        pol[f"{p}_uf_diverge_fonte"] = [int(x[0] is not None and f is not None and not pd.isna(f) and x[0] not in str(f))
+                                         for x, f in zip(pr, g["uf_fonte"].to_numpy())]
+        pol[f"{p}_area_fora_ibge_ha"] = r["cel"][(r["cel"]["uf"] == "FORA") | (r["cel"]["bioma"] == "FORA")].groupby("i")["area_completa_ha"].sum().reindex(range(n)).fillna(0.0).to_numpy()
+    pol = gpd.GeoDataFrame(pol, geometry="geometry", crs=g.crs)
+
+    # ---- saídas ----
+    out = cfg.SAIDA_TIER4 / ARQ_OUT_EMB
+    io.gravar_camada(pol, out, "P2_OUTROS_PROJETOS_poligonos", primeira=True)
+    liqs = {}
+    for p in P:
+        r = R[p]
+        m = np.array([x is not None for x in r["liquidos"]])
+        liq = gpd.GeoDataFrame(
+            pd.DataFrame({"id_proj": ids[m], "num_tad": g["num_tad"].to_numpy()[m], "serie_tad": g["serie_tad"].to_numpy()[m],
+                          "data_embargo": g["data_embargo"].to_numpy()[m], "uf_principal": pol[f"{p}_uf_principal"].to_numpy()[m],
+                          "bioma_principal": pol[f"{p}_bioma_principal"].to_numpy()[m], "area_liquida_ha": r["a_liq"][m]}),
+            geometry=list(r["liquidos"][m]), crs=g.crs)
+        liqs[p] = liq
+        io.gravar_camada(liq, out, f"P2_OUTROS_PROJETOS_{p}")
+
+    longas = []
+    for p in P:
+        c = R[p]["cel"].copy()
+        c["id_proj"] = ids[c["i"].to_numpy()]
+        c["versao"] = p
+        longas.append(c)
+    cel_all = pd.concat(longas, ignore_index=True)
+    cel_all = cel_all.rename(columns={"area_completa_ha": "area_vs_embargo_ha"})
+    cel_all[["id_proj", "versao", "uf", "bioma", "area_vs_embargo_ha", "area_liquida_ha"]].to_csv(
+        cfg.SAIDA_TIER4 / "T4_areas_uf_bioma.csv", index=False, encoding="utf-8-sig")
+    agg = cel_all.groupby(["versao", "uf", "bioma"], as_index=False)[["area_vs_embargo_ha", "area_liquida_ha"]].sum()
+    agg["n_embargos"] = cel_all.groupby(["versao", "uf", "bioma"])["id_proj"].nunique().to_numpy()
+    agg = agg[["versao", "uf", "bioma", "n_embargos", "area_vs_embargo_ha", "area_liquida_ha"]]
+    agg.to_csv(cfg.SAIDA_TIER4 / "T4_resumo_uf_bioma.csv", index=False, encoding="utf-8-sig")
+
+    def _linha(nome, sub, p):
+        r = {"grupo": nome, "n_embargos": int((sub[f"{p}_area_vs_embargo_ha"] > 0).sum()),
+             "area_embargos_inteiros_ha": sub.loc[sub[f"{p}_area_vs_embargo_ha"] > 0, "area_ha_geo"].sum(),
+             "vs_nos_embargos_ha": sub[f"{p}_area_vs_embargo_ha"].sum()}
+        for cod in [c for c, _ in por_classe]:
+            r[f"sobreposicao_{cod.lower()}_ha"] = sub[f"{p}_sobreposta_{cod.lower()}_ha"].sum()
+        r["sobreposicao_entre_embargos_ha"] = sub[f"{p}_sobreposta_na_classe_ha"].sum()
+        r["area_liquida_ha"] = sub[f"{p}_area_liquida_ha"].sum()
+        return r
+
+    linhas = []
+    for p in P:
+        linhas.append(_linha(f"{p}/TOTAL", pol, p))
+        for u in sorted(pol[f"{p}_uf_principal"].dropna().unique()):
+            linhas.append(_linha(f"{p}/uf/{u}", pol[pol[f"{p}_uf_principal"] == u], p))
+    resumo = pd.DataFrame(linhas)
+    resumo.to_csv(cfg.SAIDA_TIER4 / "T4_resumo.csv", index=False, encoding="utf-8-sig")
+    log("\n" + resumo[resumo["grupo"].str.endswith("/TOTAL")].round(1).to_string(index=False))
+
+    # acumulado das classes 1, 3 e 4 (líquidas, sem dupla contagem entre classes), por versão
+    def _prep(caminho, classe, cols_cat):
+        a = pd.read_csv(caminho)
+        a["classe"] = classe
+        a["categoria"] = a[cols_cat] if isinstance(cols_cat, str) else a["categoria"]
+        a = a.groupby(["classe", "categoria", "uf", "bioma"], as_index=False)[["area_liquida_ha", "vs22q_liquida_ha", "vs2224q_liquida_ha"]].sum()
+        return pd.DataFrame({"classe": a["classe"], "categoria": a["categoria"], "uf": a["uf"], "bioma": a["bioma"],
+                             "area_liquida_vs22q_ha": a["area_liquida_ha"], "vs_liquida_vs22q_ha": a["vs22q_liquida_ha"],
+                             "area_liquida_vs2224q_ha": a["area_liquida_ha"], "vs_liquida_vs2224q_ha": a["vs2224q_liquida_ha"]})
+
+    partes = []
+    r1, r3 = cfg.SAIDA_TIER1 / "T1_resumo_categoria_uf_bioma.csv", cfg.SAIDA_TIER3 / "T3_resumo_categoria_tema_uf_bioma.csv"
+    if r1.exists():
+        partes.append(_prep(r1, "1 RECOOPERAR", "categoria"))
+    if r3.exists():
+        partes.append(_prep(r3, "3 SICAR_REGULARIZACAO", "categoria"))
+    a4 = {p: agg[agg["versao"] == p].set_index(["uf", "bioma"])["area_liquida_ha"] for p in P}
+    idx = sorted(set(a4["vs22q"].index) | set(a4["vs2224q"].index))
+    a4d = pd.DataFrame(idx, columns=["uf", "bioma"])
+    a4d.insert(0, "categoria", "embargo_pangia")
+    a4d.insert(0, "classe", "4 OUTROS_PROJETOS")
+    for p in P:
+        v = a4[p].reindex(idx).fillna(0.0).to_numpy()
+        a4d[f"area_liquida_{p}_ha"] = v
+        a4d[f"vs_liquida_{p}_ha"] = v          # a área da classe 4 é a própria VS
+    partes.append(a4d[partes[0].columns] if partes else a4d)
+    acum = pd.concat(partes, ignore_index=True)
+    acum.to_csv(cfg.SAIDA_TIER4 / "T4_acumulado_classes_1_3_4.csv", index=False, encoding="utf-8-sig")
+    tot = acum.groupby("classe")[[c for c in acum.columns if c.endswith("_ha")]].sum()
+    log("\nacumulado (área líquida, sem dupla contagem entre classes):\n" + tot.round(1).to_string()
+        + "\n  total vs22q " + f"{tot['area_liquida_vs22q_ha'].sum():,.1f} ha | total vs2224q {tot['area_liquida_vs2224q_ha'].sum():,.1f} ha")
+
+    # ---- conferências independentes ----
+    conf = []
+
+    def chk(nome, valor, limite, obs=""):
+        conf.append({"conferencia": nome, "valor": valor, "limite": limite, "ok": bool(abs(valor) <= limite), "obs": obs})
+
+    R_prec = geo.uniao_robusta(list(prec))
+    for p in P:
+        r = R[p]
+        G, vivo, a_vs, a_liq, cel = r["G"], r["vivo"], r["a_vs"], r["a_liq"], r["cel"]
+        tol = max(1e-3, 5e-7 * float(a_vs.sum()))   # soma geodésica não é exatamente aditiva ao cortar arestas
+        chk(f"{p}: VS no embargo - (sobreposta classes anteriores + entre embargos + líquida) (ha, max por embargo)",
+            float(np.abs(a_vs - r["sobre_prec"] - r["sobre_intra"] - a_liq).max()), 1e-3, "identidade de área por embargo")
+        U = geo.uniao_robusta(list(G[vivo]))
+        esp = geo.so_poligonos(geo.diferenca_robusta([U], [R_prec])[0]) if (U is not None and R_prec is not None) else U
+        a_esp = geo.area_ha([esp])[0] if esp is not None else 0.0
+        chk(f"{p}: área líquida - área (união da VS nos embargos - união das classes anteriores) (ha)", float(a_liq.sum() - a_esp), tol,
+            "soma dos líquidos x cálculo independente por união")
+        lg = liqs[p].geometry.values
+        tree = STRtree(lg)
+        ii, jj = tree.query(lg, predicate="intersects")
+        m = ii < jj
+        ov = geo.area_ha(geo.intersecao_robusta(lg[ii[m]], lg[jj[m]])) if m.any() else np.array([0.0])
+        chk(f"{p}: sobreposição entre polígonos líquidos (ha)", float(ov.sum()), 1e-3)
+        tp = STRtree(prec)
+        ii, jj = tp.query(lg, predicate="intersects")
+        ov2 = geo.area_ha(geo.intersecao_robusta(lg[ii], prec[jj])) if len(ii) else np.array([0.0])
+        chk(f"{p}: sobreposição dos líquidos com as classes 1 e 3 (ha)", float(ov2.sum()), 1e-3)
+        soma_cel = cel.groupby("i")["area_completa_ha"].sum().reindex(range(n)).fillna(0).to_numpy()
+        chk(f"{p}: VS no embargo - soma das células UF x bioma (ha, max por embargo)", float(np.abs(a_vs - soma_cel).max()), 0.01)
+        fora = float(cel.loc[(cel["uf"] == "FORA") | (cel["bioma"] == "FORA"), "area_completa_ha"].sum())
+        chk(f"{p}: VS fora dos limites IBGE de UF ou bioma (ha)", fora, 0.0005 * float(a_vs.sum()),
+            f"{fora:,.1f} ha ficam como UF/bioma 'FORA'; tolerância 0,05% da área")
+        d = np.abs(g[f"{p}_area_ha"].to_numpy(float) - a_vs)
+        chk(f"{p}: atributo da VS (passo 1) x VS recalculada nos embargos (ha, max por embargo)", float(d.max()), 0.01)
+        dentro = geo.area_ha([geo.so_poligonos(x) if x is not None else None for x in
+                              geo.diferenca_robusta(list(G[vivo]), list(emb_geoms[vivo]))]).sum()
+        chk(f"{p}: VS fora do polígono do embargo (ha)", float(dentro), 1e-3, "a VS da classe está toda dentro do embargo")
+        chk(f"{p}: embargos com VS sem UF principal", float((vivo & pol[f"{p}_uf_principal"].isna().to_numpy()).sum()), 0)
+        chk(f"{p}: embargos com UF calculada diferente da UF da fonte", float(pol[f"{p}_uf_diverge_fonte"].sum()), 0.02 * int(vivo.sum()),
+            "informativo (limite: 2% dos embargos): UF pelos limites do IBGE x campo 'uf' do embargo")
+        chk(f"{p}: geometrias líquidas inválidas", float((~shapely.is_valid(lg)).sum()), 0)
+    pessoais = [c for c in pol.columns if c in cfg.COLUNAS_PESSOAIS_PANGIA or any(k in c.lower() for k in ("cpf", "cnpj", "nome_", "editor"))]
+    chk("colunas com possível dado pessoal nas saídas", float(len(pessoais)), 0, str(pessoais))
+    conf = pd.DataFrame(conf)
+    conf.to_csv(cfg.SAIDA_TIER4 / "T4_conferencias.csv", index=False, encoding="utf-8-sig")
+    log("\n" + conf.to_string(index=False))
+    if not conf["ok"].all():
+        log("ATENÇÃO: há conferências fora do limite (ver T4_conferencias.csv).")
+    log(f"gravado: {out}")
+    return pol, liqs, cel_all, resumo, conf
+
+
 def main(argv=None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     pedidas = [a.upper() for a in argv] or CLASSES_IMPLEMENTADAS
-    cfg.SAIDA_TIER1.mkdir(parents=True, exist_ok=True)
-    arq_log = cfg.SAIDA_TIER1 / "_log_passo2.txt"
-    if pedidas == ["CAR_REGULARIZACAO"]:
-        cfg.SAIDA_TIER3.mkdir(parents=True, exist_ok=True)
-        arq_log = cfg.SAIDA_TIER3 / "_log_passo2_car.txt"
-
-    def log(m):
-        io.log(m, arq_log)
-
-    log("Passo 2 - Camada 2 (projetos)")
     for c in pedidas:
         if c not in CLASSES_IMPLEMENTADAS:
-            log(f"classe '{c}': ainda não implementada.")
+            print(f"classe '{c}': ainda não implementada.")
             return 1
-    if "RECOOPERAR" in pedidas:
-        classe_recooperar(log)
-    if "CAR_REGULARIZACAO" in pedidas:
-        classe_car_regularizacao(log)
-    log("fim")
+    # cada classe grava o log na própria pasta (o comando sem argumento roda todas, na ordem da hierarquia)
+    classes = [
+        ("RECOOPERAR", classe_recooperar, cfg.SAIDA_TIER1, "_log_passo2.txt"),
+        ("CAR_REGULARIZACAO", classe_car_regularizacao, cfg.SAIDA_TIER3, "_log_passo2_car.txt"),
+        ("OUTROS_PROJETOS", classe_outros_projetos, cfg.SAIDA_TIER4, "_log_passo2_outros.txt"),
+    ]
+    for nome, funcao, pasta, arq in classes:
+        if nome not in pedidas:
+            continue
+        pasta.mkdir(parents=True, exist_ok=True)
+        arq_log = pasta / arq
+
+        def log(m, _a=arq_log):
+            io.log(m, _a)
+
+        log(f"Passo 2 - Camada 2 (projetos) - classe {nome}")
+        funcao(log)
+        log("fim")
     return 0
 
 

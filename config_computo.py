@@ -23,6 +23,7 @@ PROGRESSO = SAIDA / "_progresso"                # checkpoints JSON (retomada aut
 SAIDA_INSUMOS = SAIDA / "Insumos"               # passo 1: IN_<CLASSE> (elegíveis, polígonos inteiros)
 SAIDA_TIER1 = SAIDA / "Tier1_Recooperar"        # passo 2 (classe 1): P2_RECOOPERAR + tabelas
 SAIDA_TIER3 = SAIDA / "Tier3_CAR_Regularizacao" # passo 2 (classe 3, SICAR-regularização); a classe 2 (MonitoRAD) está desativada
+SAIDA_TIER4 = SAIDA / "Tier4_Outros_Projetos"   # passo 2 (classe 4, Outros projetos: por ora só embargos PANGIA x VS)
 
 # ---------------------------------------------------------------------------
 # Parâmetros gerais
@@ -98,7 +99,14 @@ FONTES = {
     "embargos_pangia": {   # já limpo: sem registros sem geometria e sem pontos (50.674 polígonos)
         "arquivo": "IBAMA_Areas_Embargadas_PANGIA20260920_Poligonos.gpkg",
         "camada": "IBAMA_Area_Embargada_PANGIA20260920",
-    },                                                              # PENDENTE: papel no cômputo
+        # Cruzamento VS qualificada x embargos (uma peça por embargo x feição de VS; ``idx_embargo`` = posição 0-based
+        # do embargo no arquivo acima, isto é, FID - 1). Classe 4: só a VS dentro do embargo entra no cômputo.
+        "cruzamento": {
+            "vs22q": "Cruzamento_Espacial_Vegetacao_Secundaria/VS-Areas_Embargadas/IBAMA_Areas_Embargadas_PANGIA20260920_x_VegSec_2022_qualificada.gpkg",
+            "vs2224q": "Cruzamento_Espacial_Vegetacao_Secundaria/VS-Areas_Embargadas/IBAMA_Areas_Embargadas_PANGIA20260920_x_VegSec_2022-2024_qualificada.gpkg",
+        },
+        "camada_cruzamento": "IBAMA_Area_Embargada_PANGIA20260920_vegsec",
+    },
     "florestas_publicas_nao_destinadas": None,                      # PENDENTE: fonte do dado (CNFP)
 }
 
@@ -191,6 +199,29 @@ NOME_CAR_REG = {"app": "Área a recompor - APP (art. 61-A)", "rl": "Área a reco
 CAMPOS_CAR_REG = {"cod_tema": "cod_tema", "nom_tema": "nom_tema", "cod_imovel": "cod_imovel",
                   "status_car": "ind_status", "condicao_car": "des_condic"}
 
+# ---------------------------------------------------------------------------
+# Classe 4 - Outros projetos (por ora: embargos PANGIA; ICMBio adiado). A área da classe é a VS DENTRO do embargo.
+# ---------------------------------------------------------------------------
+# Decidido pelo usuário: embargos PANGIA entram como "Outros projetos" só pela interseção com a VS qualificada
+# (duas versões), nunca pela extensão total. Adotado (a confirmar, ver docs/tier4_outros_projetos.md):
+#  E1 o arquivo de embargos não tem campo de situação/status: entram todos os 50.674 polígonos; o filtro é ter VS;
+#  E2 sobreposição entre embargos: a área fica com o embargo MAIS ANTIGO (dat_embarg), depois o de menor FID;
+#  E3 a geometria da classe difere entre as versões da VS (a VS 2022-2024 substitui Amazônia e Cerrado);
+#  E4 nenhum filtro pela data do embargo: a VS entra mesmo em embargos posteriores ao ano da VS (~20% da área líquida da vs22q
+#     está em embargos de 2023 em diante). Um filtro (ex.: embargo até o ano da VS) é decisão do usuário.
+PRECEDENCIA_EMBARGO_PANGIA = "data do embargo (mais antigo primeiro), depois FID"
+NOME_EMBARGO_PANGIA = "Embargo PANGIA (IBAMA) - VS dentro do embargo"
+# Campos do embargo que seguem para o cômputo: nome novo -> campo de origem.
+CAMPOS_EMBARGO_PANGIA = {
+    "num_tad": "num_tad", "serie_tad": "serie_tad", "seq_tad": "seq_tad",
+    "uf_fonte": "uf", "cod_municipio": "cod_munici", "municipio_fonte": "municipio",
+    "situacao_desmat": "sit_desmat", "tipo_area": "tipo_area", "bioma_fonte": "des_tipo_b", "operacao": "operacao",
+}
+# NÃO seguem (nomes/CPF/CNPJ de embargados e textos livres com nomes de pessoas, imóveis e lugares): LGPD.
+COLUNAS_PESSOAIS_PANGIA = ["nome_embar", "cpf_cnpj_e", "nome_imove", "des_locali", "des_tad", "des_infrac"]
+PLACEHOLDERS_PANGIA = ["", "Não se aplica", "Nao se aplica", "Não Se Aplica"]
+ELEGIBILIDADE_EMBARGO_PANGIA = {"area_min_ha": 1e-6}   # peça de VS com área <= 0,01 m2 sai
+
 # VS por camada (arquivo, camada, bioma em BIOMAS_VS). Todas em SIRGAS 2000 (a VS 2022 da Mata Atlântica vem
 # sem CRS definido no arquivo; é tratada como EPSG:4674, como nos cruzamentos anteriores).
 _VS22 = "Vegetacao_Secundaria_INPE/VS_2022_TerraBrasilis_Vegetacao_Secundaria_Qualificada_Brasil.gpkg"
@@ -259,8 +290,9 @@ def precedentes(codigo: str) -> list[str]:
 # Decisões confirmadas em 21/09/2026 (SICAR-regularização, classe 3): D0 o arquivo (AC, MT, PB, RJ e SP; 2.391 imóveis) é o conjunto
 #   nacional completo; D5 entram todos os status do cadastro (AT, PE, SU); D6 precedência APP > RL averbada > RL aprovada não
 #   averbada > RL proposta; D7 a área fora dos limites do IBGE fica rotulada 'FORA' (14,6 ha, polígono CARREG-RL-000924), sem UF.
+#   Classe 4 (21/09/2026): embargos PANGIA20260920 entram só pela interseção com a VS qualificada (decisão de 20/09/2026); E1 a E3 adotadas.
 PENDENCIAS = [
-    "Papel dos embargos PANGIA no cômputo: entram como 'Outros projetos' só pela interseção com a VS (decidido); implementar no passo 2 (classe 4).",
+    "Classe 4 (embargos PANGIA x VS): confirmar E1 (todos os embargos, sem filtro de status), E2 (embargo mais antigo fica com a área sobreposta), E3 (geometria por versão da VS) e E4 (sem filtro pela data do embargo).",
     "ICMBio (adiado em 21/09/2026): quais camadas são projetos; ver análise de atributos e sobreposição (Analise_Atributos_e_Sobreposicao_Projetos_IBAMA_ICMBio.xlsx).",
     "OR: arquivo com 4 feições (uma por bioma, dissolvido) - confirmar que é o conjunto público final.",
     "Florestas Públicas Não Destinadas (CNFP): fonte do dado.",

@@ -60,20 +60,24 @@ class Limites:
         return cel
 
 
-def tabela_celulas(geoms, liquidos, lim, vs_pedacos, versoes, log=None, cada=200):
+def tabela_celulas(geoms, liquidos, lim, vs_pedacos=None, versoes=(), log=None, cada=200):
     """Uma linha por polígono x UF x bioma: área completa, área líquida e VS (completa e líquida) por versão.
 
-    geoms     : polígonos inteiros;  liquidos : geometria líquida de cada um (None se vazia)
-    vs_pedacos: {versão: PedacosVS};  versoes: lista de prefixos (vs22q, vs2224q)
+    geoms     : polígonos inteiros (None = polígono sem área: não gera linhas);  liquidos : geometria líquida de cada um
+    vs_pedacos: {versão: PedacosVS};  versoes: lista de prefixos (vs22q, vs2224q). Sem versões, só as áreas
+                (classe 4: a geometria já é a própria VS, por isso não há o que recalcular).
     """
     import pandas as pd
 
     from .vs import area_vs
 
     n = len(geoms)
+    colunas = ["i", "uf", "bioma", "area_completa_ha", "area_liquida_ha"] + [f"{p}_{t}_ha" for p in versoes for t in ("completa", "liquida")]
     linhas = []
     for i in range(n):
         G, N = geoms[i], liquidos[i]
+        if G is None:
+            continue
         U = {p: vs_pedacos[p].uniao_em(G) for p in versoes}
         for uf, bio, C in lim.celulas(G):
             NC = None
@@ -87,7 +91,7 @@ def tabela_celulas(geoms, liquidos, lim, vs_pedacos, versoes, log=None, cada=200
             linhas.append(linha)
         if log and ((i + 1) % cada == 0 or i + 1 == n):
             log(f"  {i + 1}/{n} polígonos")
-    return pd.DataFrame(linhas)
+    return pd.DataFrame(linhas, columns=colunas)
 
 
 def resumo_uf_bioma_por_poligono(cel, n):

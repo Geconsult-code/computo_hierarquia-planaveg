@@ -90,6 +90,7 @@ O cruzamento da VS com APP/RL/AUR dos imóveis selecionados vem do repositório
 
 - MonitoRAD fora do cômputo.
 - Embargos PANGIA (20/09/2026): mantidos só os 50.674 polígonos reais; removidos 13.810 registros sem
-  geometria e 26.843 pontos (microcírculos), com extensão corrigida.
+  geometria e 26.843 pontos (microcírculos), com extensão corrigida. Entram na classe 4 (Outros projetos) só pela
+  interseção com a VS qualificada (`docs/tier4_outros_projetos.md`).
 - Áreas calculadas de forma geodésica (elipsoide GRS80), em EPSG:4674, como no restante do projeto.
 - Itens ainda pendentes de decisão estão em `PENDENCIAS` no arquivo `config_computo.py`.

@@ -1,2 +1,2 @@
-"""Núcleo reutilizável do cômputo Planaveg 2026 (v0.2.0: Tier-1 Recooperar)."""
-__version__ = "0.3.1"
+"""Núcleo reutilizável do cômputo Planaveg 2026 (v0.4.0: classes 1, 3 e 4)."""
+__version__ = "0.4.0"

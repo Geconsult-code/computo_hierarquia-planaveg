@@ -13,7 +13,7 @@ campos vêm da leitura direta dos arquivos.
 | `ICMBio_Projetos_Restauracao_2026_com_area.gpkg` | Restauracao_Ecologica (3.609); Areas_Degradadas (3.855); Embargos_maior5ha (3.685) | CRS não definido no arquivo. Definir quais camadas são projetos |
 | `ICMBio_Projetos_GEF_Terrestre_2026_com_area.gpkg` | 7 camadas (Pantanal, Pampa, Caatinga; 4 a 326 feições) | CRS heterogêneos (sem CRS, 32722, 31981, 31984), geometrias 3D |
 | `ORR_Observatorio_Restauracao_2025_com_area.gpkg` | 1 camada, 4 feições (uma por bioma: Amazônia, Caatinga, Cerrado, Mata Atlântica; 48,7 mil ha) | Campo `hierarquia` = ORR. Já dissolvido; sem Pampa e Pantanal |
-| `IBAMA_Areas_Embargadas_PANGIA20260920_Poligonos.gpkg` (EPSG:4674) | 1 camada, 50.674 polígonos (5,88 Mha somados; 5,16 Mha sem sobreposição interna) | Versão limpa de `..._PANGIA20260920.gpkg` (91.327 registros). Chave `num_tad` + `serie_tad` (`seq_tad` = 0 em 1.563 registros). Sem campo de status de recuperação |
+| `IBAMA_Areas_Embargadas_PANGIA20260920_Poligonos.gpkg` (EPSG:4674) | 1 camada, 50.674 polígonos (5,88 Mha somados; 5,16 Mha sem sobreposição interna) | Versão limpa de `..._PANGIA20260920.gpkg` (91.327 registros). Chave `num_tad` + `serie_tad` (`seq_tad` = 0 em 1.563 registros). Sem campo de status de recuperação. Entrada da classe 4 (só a VS dentro do embargo). Colunas com nome/CPF/CNPJ do embargado e textos livres (`nome_embar`, `cpf_cnpj_e`, `nome_imove`, `des_locali`, `des_tad`, `des_infrac`) **não** seguem para o cômputo (LGPD) |
 
 ## Camada 1 - governança
 
@@ -81,3 +81,25 @@ Colunas próprias da tabela de polígonos: `id_proj`, `categoria` (app/rl), `cod
 `municipio_car`, `mod_fiscal`, `area_imovel_ha`, `area_decl_ha`, `area_ha_geo`, `elegivel_computo`, `motivo_elegibilidade`, `prec_ordem`,
 `area_sobreposta_classes_anteriores_ha`, `n_precedentes_sobrepostos`, `area_sobreposta_na_classe_ha`, `area_liquida_ha`, `uf_principal`, `ufs`,
 `bioma_principal`, `biomas`, `area_fora_ibge_ha`, `uf_diverge_car`, `vs*_completa_recalc_ha`, `vs*_liq_ha`.
+
+## Saídas da classe 4 (Outros projetos: embargos PANGIA)
+
+Em `Computo_Planaveg_2026\Insumos` e `Computo_Planaveg_2026\Tier4_Outros_Projetos` (ver `docs/tier4_outros_projetos.md`).
+Entrada: `IBAMA_Areas_Embargadas_PANGIA20260920_Poligonos.gpkg` e o cruzamento com a VS qualificada em
+`Cruzamento_Espacial_Vegetacao_Secundaria\VS-Areas_Embargadas` (`idx_embargo` = FID do embargo - 1).
+
+| Arquivo | Conteúdo |
+|---|---|
+| `Insumos\IN_Embargos_PANGIA_20260920.gpkg` (`IN_EMBARGOS_PANGIA`) | Embargos inteiros que têm VS em alguma versão (referência), campos sem dados pessoais e atributos `vs22q_*` e `vs2224q_*` |
+| `Insumos\IN_Embargos_PANGIA_20260920_VS.gpkg` | Peças VS x embargo (`vs22q_pedacos`, `vs2224q_pedacos`), com `id_proj`, `vs_id`, `vs_ano`, `vs_bioma`, `vs_camada`, `area_ha` |
+| `Insumos\IN_Embargos_PANGIA_20260920_resumo.csv` / `_excluidos.csv` | Total x com VS, por UF; embargos sem VS (fora do cômputo) |
+| `Tier4_Outros_Projetos\P2_Outros_Projetos_PANGIA_20260920.gpkg` | `P2_OUTROS_PROJETOS_poligonos` (embargos inteiros com a VS, as sobreposições e a área líquida de cada versão), `P2_OUTROS_PROJETOS_vs22q` e `P2_OUTROS_PROJETOS_vs2224q` (polígonos líquidos da classe, disjuntos entre si e das classes 1 e 3) |
+| `T4_areas_uf_bioma.csv`, `T4_resumo_uf_bioma.csv`, `T4_resumo.csv`, `T4_conferencias.csv` | Tabela longa embargo x versão x UF x bioma, resumos e conferências |
+| `T4_acumulado_classes_1_3_4.csv` | Área líquida acumulada das classes 1, 3 e 4, por versão da VS, classe, categoria, UF e bioma |
+
+Colunas próprias da tabela de polígonos: `id_proj` (`EMB-<fid>`), `num_tad`, `serie_tad`, `seq_tad`, `data_embargo`, `ano_embargo`,
+`uf_fonte`, `cod_municipio`, `municipio_fonte`, `situacao_desmat`, `tipo_area`, `bioma_fonte`, `operacao`, `area_ha_geo` (embargo inteiro),
+`prec_ordem`, e, para cada versão `<p>` (`vs22q`, `vs2224q`): `<p>_tem`, `<p>_area_ha`, `<p>_pct`, `<p>_n_pol`, `<p>_ha_<bioma>`
+(passo 1), `<p>_area_vs_embargo_ha`, `<p>_sobreposta_recooperar_ha`, `<p>_sobreposta_sicar_regularizacao_ha`,
+`<p>_sobreposta_classes_anteriores_ha`, `<p>_n_precedentes_sobrepostos`, `<p>_sobreposta_na_classe_ha`, `<p>_area_liquida_ha`,
+`<p>_uf_principal`, `<p>_ufs`, `<p>_bioma_principal`, `<p>_biomas`, `<p>_uf_diverge_fonte`, `<p>_area_fora_ibge_ha`.
