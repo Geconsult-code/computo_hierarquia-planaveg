@@ -62,7 +62,36 @@ def liquido_por_precedencia(geoms, prioridade):
 
 
 def subtrair_precedentes(pecas, precedentes):
-    raise NotImplementedError("classes 3 a 11: a implementar (peça a peça, com STRtree)")
+    """Subtrai de cada peça a união das geometrias das classes de maior prioridade (peça a peça, com STRtree).
+
+    pecas       : array de polígonos válidos (EPSG:4674)
+    precedentes : array de polígonos das classes anteriores (podem se sobrepor entre si; o líquido da classe
+                  anterior, disjunto, é o que o cômputo usa)
+    Devolve (restantes, retirada_ha): geometria restante (None se vazia) e área retirada de cada peça (ha).
+    Nunca dissolve todos os precedentes: cada peça só vê os que a intersectam.
+    """
+    pecas = np.array(pecas, dtype=object)
+    restantes = pecas.copy()
+    retirada = np.zeros(len(pecas), dtype=float)
+    prec = np.array([g for g in precedentes if g is not None and not g.is_empty], dtype=object)
+    if len(prec) and len(pecas):
+        tree = STRtree(prec)
+        ii, jj = tree.query(pecas, predicate="intersects")
+        ordem = np.argsort(ii, kind="stable")
+        ii, jj = ii[ordem], jj[ordem]
+        if len(ii):
+            inicios = np.flatnonzero(np.r_[True, ii[1:] != ii[:-1]])
+            fins = np.r_[inicios[1:], len(ii)]
+            for a, b in zip(inicios, fins):
+                i = ii[a]
+                u = uniao_robusta(list(prec[jj[a:b]]))
+                restantes[i] = so_poligonos(diferenca_robusta([pecas[i]], [u])[0])
+    a_bruta = area_ha(pecas)
+    a_rest = area_ha([g for g in restantes])
+    retirada = np.where(a_bruta - a_rest < MIN_INTER_HA, 0.0, a_bruta - a_rest)
+    for i in np.where(a_rest < MIN_INTER_HA)[0]:
+        restantes[i] = None
+    return restantes, retirada
 
 
 def aplicar_hierarquia(uf: str) -> None:

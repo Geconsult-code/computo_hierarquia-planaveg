@@ -16,12 +16,12 @@ VS 2022-2024 qualificada = `vs2224q`). Limites IBGE de UF e bioma.
 
 | Categoria | Regra | Situação da decisão |
 |---|---|---|
-| Licenciamento | 100% da camada (inclui 6 polígonos `ATUALIZAR`) | **PENDENTE D3** |
-| Reparação por danos | Por etapa (`descricao_`): fora "sem projeto" e "indícios"; `ATUALIZAR` só se status = Recuperada; inclui "Projeto reprovado" (leitura literal) | **PENDENTE D2** |
+| Licenciamento | 100% da camada (inclui 6 polígonos `ATUALIZAR`) | Confirmado (D3, 21/09/2026) |
+| Reparação por danos | Por etapa (`descricao_`): fora "sem projeto" e "indícios"; `ATUALIZAR` só se status = Recuperada; inclui "Projeto reprovado" (leitura literal, 2.399 ha) e "Pendente de recuperação" (219 polígonos, 10.832 ha; o filtro é pela etapa, não pelo status) | Confirmado (D2, 21/09/2026) |
 | Embargo | Status Em recuperação ou Recuperada | adotado |
-| Outras áreas | 100% da camada | **PENDENTE D4** |
+| Outras áreas | 100% da camada (inclui 4 polígonos "Pendente de recuperação", 512 ha) | Confirmado (D4, 21/09/2026) |
 
-Esses parâmetros são editáveis no config; basta reexecutar os passos 1 e 2.
+Todas as decisões acima foram confirmadas pelo usuário em 21/09/2026, assim como a ordem de precedência abaixo. Os parâmetros continuam editáveis no config; basta reexecutar os passos 1 e 2.
 
 ## Sobreposição dentro da classe
 

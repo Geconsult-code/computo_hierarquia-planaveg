@@ -5,10 +5,11 @@ reporte da meta nacional do Planaveg 2025-2028, seguindo o Relatório Técnico *
 Monitoramento Geoespacial e Reporte de Áreas em Processo de Recuperação da Vegetação Nativa*
 (MMA / Conaveg, setembro de 2026).
 
-> **Status: v0.2.0 - Tier-1 (Recooperar 2026) implementado.** Passos 1 e 2 funcionam para a classe
-> Recooperar (área completa dos polígonos elegíveis, atributos de VS mantidos na tabela). As demais
-> classes e os passos 3 a 7 seguem como esqueleto. Decisões abertas estão em `PENDENCIAS`, no arquivo
-> `config_computo.py`. Método e saídas do Tier-1: `docs/tier1_recooperar.md`.
+> **Status: v0.3.0 - classes 1 (Recooperar 2026) e 3 (SICAR-regularização) implementadas.** Passos 1 e 2
+> funcionam para essas classes (área completa dos polígonos elegíveis, atributos de VS mantidos na tabela; a
+> classe 3 subtrai a 1). As demais classes e os passos 3 a 7 seguem como esqueleto. Regras do Recooperar e
+> precedência confirmadas em 21/09/2026; decisões abertas das demais classes estão em `PENDENCIAS`, no arquivo
+> `config_computo.py`. Método e saídas: `docs/tier1_recooperar.md` e `docs/tier3_car_regularizacao.md`.
 
 ## Onde este repositório se encaixa
 
@@ -34,8 +35,8 @@ Monitoramento Geoespacial e Reporte de Áreas em Processo de Recuperação da Ve
 
 | Passo | Script | Função |
 |---|---|---|
-| 1 | `1_preparar_insumos.py` | Aplica elegibilidade, padroniza CRS e campos, repara geometrias (**implementado: Recooperar**) |
-| 2 | `2_camada2_projetos.py` | Hierarquia entre os projetos e atribuição de UF e bioma (**implementado: classe Recooperar / Tier-1**; demais classes pendentes) |
+| 1 | `1_preparar_insumos.py` | Aplica elegibilidade, padroniza CRS e campos, repara geometrias (**implementado: Recooperar e CAR-regularização**) |
+| 2 | `2_camada2_projetos.py` | Hierarquia entre os projetos e atribuição de UF e bioma (**implementado: classes 1 Recooperar e 3 CAR-regularização**; demais pendentes) |
 | 3 | `3_camada1_vs_governanca.py` | Consolida os cruzamentos VS x TI, UC, manguezais e APP/AUR/RL |
 | 4 | `4_aplicar_hierarquia.py` | Aplica a ordem completa do Anexo 1 e remove Florestas Públicas Não Destinadas |
 | 5 | `5_desagregacao_arranjos.py` | Classifica nos arranjos da Figura 4, por UF e bioma |
@@ -57,16 +58,18 @@ computo_hierarquia-planaveg/
 └── exemplos/teste_nucleo.py # teste de integridade da configuração
 ```
 
-## Executar o Tier-1 (Recooperar 2026)
+## Executar as classes 1 e 3 (Recooperar 2026 e SICAR-regularização)
 
 ```
 conda activate geo
-python exemplos/teste_nucleo.py        # 14 testes sintéticos
-python 1_preparar_insumos.py           # -> Computo_Planaveg_2026\Insumos
-python 2_camada2_projetos.py           # -> Computo_Planaveg_2026\Tier1_Recooperar
+python exemplos/teste_nucleo.py        # 18 testes sintéticos
+python 1_preparar_insumos.py           # -> Computo_Planaveg_2026\Insumos (Recooperar e CAR-regularização, com a VS)
+python 2_camada2_projetos.py           # -> ...\Tier1_Recooperar e ...\Tier3_CAR_Regularizacao
+# ou por classe:  python 1_preparar_insumos.py car_regularizacao ;  python 2_camada2_projetos.py car_regularizacao
 ```
 
-Os caminhos vêm de `config_computo.py` (ou das variáveis `PLANAVEG_RAIZ` e `PLANAVEG_SAIDA`).
+Os caminhos vêm de `config_computo.py` (ou das variáveis `PLANAVEG_RAIZ` e `PLANAVEG_SAIDA`). A classe 3 precisa da classe 1
+já processada (subtrai `P2_RECOOPERAR`).
 
 ## Instalação
 
@@ -87,4 +90,4 @@ Ficam em `GEODATABASE\GEOPACKAGE` (caminho em `config_computo.py`). O inventári
 ## Licença e citação
 
 MIT (ver `LICENSE`). Para citar: Braga Meira, M. (2026). *Cômputo Planaveg 2026 - hierarquia de
-sobreposições* (v0.2.0) [software]. Geoconsult Ltda. Ver `CITATION.cff`.
+sobreposições* (v0.3.0) [software]. Geoconsult Ltda. Ver `CITATION.cff`.

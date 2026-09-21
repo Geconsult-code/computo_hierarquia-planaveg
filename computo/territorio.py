@@ -58,3 +58,48 @@ class Limites:
         if r is not None:
             cel.append(("FORA", "FORA", r))
         return cel
+
+
+def tabela_celulas(geoms, liquidos, lim, vs_pedacos, versoes, log=None, cada=200):
+    """Uma linha por polígono x UF x bioma: área completa, área líquida e VS (completa e líquida) por versão.
+
+    geoms     : polígonos inteiros;  liquidos : geometria líquida de cada um (None se vazia)
+    vs_pedacos: {versão: PedacosVS};  versoes: lista de prefixos (vs22q, vs2224q)
+    """
+    import pandas as pd
+
+    from .vs import area_vs
+
+    n = len(geoms)
+    linhas = []
+    for i in range(n):
+        G, N = geoms[i], liquidos[i]
+        U = {p: vs_pedacos[p].uniao_em(G) for p in versoes}
+        for uf, bio, C in lim.celulas(G):
+            NC = None
+            if N is not None:
+                NC = so_poligonos(intersecao_robusta([N], [C])[0])
+            linha = {"i": i, "uf": uf, "bioma": bio, "area_completa_ha": area_ha([C])[0],
+                     "area_liquida_ha": area_ha([NC])[0] if NC is not None else 0.0}
+            for p in versoes:
+                linha[f"{p}_completa_ha"] = area_vs(U[p], C)
+                linha[f"{p}_liquida_ha"] = area_vs(U[p], NC) if NC is not None else 0.0
+            linhas.append(linha)
+        if log and ((i + 1) % cada == 0 or i + 1 == n):
+            log(f"  {i + 1}/{n} polígonos")
+    return pd.DataFrame(linhas)
+
+
+def resumo_uf_bioma_por_poligono(cel, n):
+    """(uf_principal, ufs, bioma_principal, biomas) por polígono, a partir de ``tabela_celulas``."""
+    def _lista(sub, col):
+        s = sub.groupby(col)["area_completa_ha"].sum().sort_values(ascending=False)
+        s = s[s > 1e-6]
+        return ";".join(s.index), (s.index[0] if len(s) else None)
+
+    saida = {}
+    for i, sub in cel.groupby("i"):
+        u_lista, u_prin = _lista(sub, "uf")
+        b_lista, b_prin = _lista(sub, "bioma")
+        saida[i] = (u_prin, u_lista, b_prin, b_lista)
+    return [saida.get(i, (None,) * 4) for i in range(n)]

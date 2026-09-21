@@ -22,6 +22,7 @@ LOGS = SAIDA / "_logs"
 PROGRESSO = SAIDA / "_progresso"                # checkpoints JSON (retomada automática)
 SAIDA_INSUMOS = SAIDA / "Insumos"               # passo 1: IN_<CLASSE> (elegíveis, polígonos inteiros)
 SAIDA_TIER1 = SAIDA / "Tier1_Recooperar"        # passo 2 (classe 1): P2_RECOOPERAR + tabelas
+SAIDA_TIER3 = SAIDA / "Tier3_CAR_Regularizacao" # passo 2 (classe 3, SICAR-regularização); a classe 2 (MonitoRAD) está desativada
 
 # ---------------------------------------------------------------------------
 # Parâmetros gerais
@@ -118,18 +119,19 @@ VS_ARQUIVOS = {
 }
 
 # ---------------------------------------------------------------------------
-# Elegibilidade (valores de campo -> vocabulário do relatório)  [PENDENTE: confirmar]
+# Elegibilidade (valores de campo -> vocabulário do relatório)  [D2, D3, D4 CONFIRMADAS em 21/09/2026]
 # ---------------------------------------------------------------------------
 ELEGIBILIDADE_RECOOPERAR = {
     "campo_status": "status_are",
     "campo_etapa": "descricao_",
     # Licenciamento (LAC): premissa do usuário = 100% da camada. Nenhum registro traz "LAC" literal
-    # (tipo_licen = LO, LI, ...). Inclui 6 polígonos com status ATUALIZAR (8,3 mil ha).      [PENDENTE D3: confirmar]
+    # (tipo_licen = LO, LI, ...). Inclui 6 polígonos com status ATUALIZAR (8,3 mil ha).      [D3 CONFIRMADA 21/09/2026]
     "licenciamento": {"status": None},
-    # Reparação: "a partir de projeto protocolado", lido pela ETAPA (descricao_).             [PENDENTE D2: confirmar]
+    # Reparação: "a partir de projeto protocolado", lido pela ETAPA (descricao_).             [D2 CONFIRMADA 21/09/2026]
     #  - fora: etapas sem projeto (regeneração/indício);
     #  - etapa ATUALIZAR: entra só se status = Recuperada (projeto concluído); em recuperação, fica fora;
     #  - "Projeto reprovado" ENTRA pela leitura literal (etapa >= protocolado): 2,4 mil ha; para retirar, ver etapas_fora.
+    #  - o filtro é pela etapa, não pelo status: entram também os "Pendente de recuperação" (219 polígonos, 10,8 mil ha).
     "reparacao": {
         "status": ["Em recuperação", "Pendente de recuperação", "Recuperada"],
         "etapas_fora": ["sem projeto", "indícios", "índicios"],          # correspondência por trecho, sem caixa
@@ -137,7 +139,7 @@ ELEGIBILIDADE_RECOOPERAR = {
     },
     # Embargo: status "Em recuperação" ou "Recuperada" (a camada 2026 só traz esses dois).
     "embargo": {"status": ["Em recuperação", "Recuperada"]},
-    # Outras áreas: categoria do dashboard do relatório; fora da lista de premissas.         [PENDENTE D4: confirmar]
+    # Outras áreas: categoria do dashboard do relatório; fora da lista de premissas.         [D4 CONFIRMADA 21/09/2026: 100%, inclui 4 'Pendente de recuperação']
     "outras": {"status": None},
 }
 # Ordem de precedência DENTRO do Recooperar quando polígonos de camadas diferentes se sobrepõem
@@ -168,6 +170,41 @@ CAMPOS_RECOOPERAR = {
 COLUNAS_PESSOAIS_RECOOPERAR = ["administra", "cpf_cnpj_a", "cpf_cnpj_e", "editor_alt", "editor_cad", "numeropess"]
 ELEGIBILIDADE_TI_FASES = ["Delimitada", "Declarada", "Homologada", "Regularizada"]  # conferir valores reais de fase_ti
 CAR_CONDICOES_SICAR_REGULARIZACAO = ["Analisado, em regularização ambiental (Lei nº 12.651/2012)"]
+
+# ---------------------------------------------------------------------------
+# Classe 3 - SICAR-regularização (área a recompor de APP e RL dos imóveis "Analisado, em regularização ambiental")
+# ---------------------------------------------------------------------------
+# Elegibilidade [D5-D6 PROPOSTAS em 21/09/2026, aguardando confirmação]:
+#  - condição do imóvel: a do relatório (comparação sem acento e sem símbolos: "regularizacao" == "regularização");
+#  - status do cadastro (ind_status): AT ativo, PE pendente, SU suspenso. O relatório não filtra pelo status do
+#    cadastro e a camada já vem filtrada pela condição; por isso entram todos (PE+SU = 1,2 mil ha de 33,6 mil).
+ELEGIBILIDADE_CAR_REG = {
+    "condicao": CAR_CONDICOES_SICAR_REGULARIZACAO[0],
+    "status_car": ["AT", "PE", "SU"],           # [PENDENTE D5] retirar PE/SU para ficar só com cadastros ativos
+    "area_min_ha": 1e-6,                        # polígonos com área geodésica <= 0,01 m2 saem (5 fragmentos nulos no CAR)
+}
+# Ordem de precedência DENTRO da classe (área sobreposta conta uma vez): APP > RL (seção 4.3 do relatório);
+# entre os temas de RL: averbada > aprovada e não averbada > proposta; depois fid.  [PENDENTE D6: confirmar]
+PRECEDENCIA_CAR_REG = ["APP_ESCADINHA", "ARL_AVERBADA", "ARL_APROVADA_NAO_AVERBADA", "ARL_PROPOSTA"]   # por cod_tema
+NOME_CAR_REG = {"app": "Área a recompor - APP (art. 61-A)", "rl": "Área a recompor - Reserva Legal"}
+# Campos que seguem do CAR (sem dados pessoais: a camada só traz códigos de imóvel, tema e situação).
+CAMPOS_CAR_REG = {"cod_tema": "cod_tema", "nom_tema": "nom_tema", "cod_imovel": "cod_imovel",
+                  "status_car": "ind_status", "condicao_car": "des_condic"}
+
+# VS por camada (arquivo, camada, bioma em BIOMAS_VS). Todas em SIRGAS 2000 (a VS 2022 da Mata Atlântica vem
+# sem CRS definido no arquivo; é tratada como EPSG:4674, como nos cruzamentos anteriores).
+_VS22 = "Vegetacao_Secundaria_INPE/VS_2022_TerraBrasilis_Vegetacao_Secundaria_Qualificada_Brasil.gpkg"
+_VS24A = "Vegetacao_Secundaria_INPE/VS_2024_Terraclass_Vegetacao_Secundaria_Qualificada_Bioma_Amazonia.gpkg"
+_VS24C = "Vegetacao_Secundaria_INPE/VS_2024_Terraclass_Vegetacao_Secundaria_Qualificada_Bioma_Cerrado.gpkg"
+_L22 = {"Amazonia": "Vegetacao_Secundaria_Amazonia_2022_qualificada", "Caatinga": "Vegetacao_Secundaria_Caatinga_2022_qualificada",
+        "Cerrado": "Vegetacao_Secundaria_Cerrado_2022_qualificada", "Mata_Atlantica": "Vegetacao_Secundaria_Mata_Atlantica_2022_qualificada",
+        "Pampa": "Vegetacao_Secundaria_Pampa_2022_qualificada", "Pantanal": "Vegetacao_Secundaria_Pantanal_2022_qualificada"}
+VS_CAMADAS = {
+    "vs22q": [(_VS22, _L22[b], b, "2022") for b in BIOMAS_VS],
+    "vs2224q": [(_VS22, _L22[b], b, "2022") for b in ("Caatinga", "Mata_Atlantica", "Pampa", "Pantanal")]
+               + [(_VS24A, "VS_Amazônia_2024_2ha_2casas", "Amazonia", "2024"),
+                  (_VS24C, "vs_qualificacao_cerrado_2024_v01", "Cerrado", "2024")],
+}
 
 # ---------------------------------------------------------------------------
 # Hierarquia (Anexo 1): cada classe subtrai TODAS as classes ativas de ordem menor.
@@ -215,9 +252,13 @@ def precedentes(codigo: str) -> list[str]:
     return [c["codigo"] for c in classes_ativas() if c["ordem"] < alvo["ordem"]]
 
 
+# Decisões confirmadas pelo usuário em 21/09/2026 (Recooperar 2026, Tier-1):
+#   D2 Reparação por etapa (fora "sem projeto", "indícios" e ATUALIZAR não Recuperada; entram "Projeto reprovado" e
+#      "Pendente de recuperação"); D3 Licenciamento 100% (inclui 6 ATUALIZAR); D4 Outras áreas 100%;
+#   precedência Licenciamento > Reparação > Embargo > Outras.
 PENDENCIAS = [
-    "Recooperar 2026: confirmar D2 (Reparação: leitura por etapa, inclui 'Projeto reprovado'), D3 (Licenciamento 100% da camada, inclui 6 'ATUALIZAR') e D4 ('Outras áreas' entram).",
-    "Precedência entre as 4 categorias do Recooperar quando se sobrepõem (PRECEDENCIA_RECOOPERAR): efeito < 2% da área.",
+    "SICAR-regularização (classe 3): confirmar D5 (status do cadastro AT/PE/SU: entram todos; PE+SU = 1,2 mil ha) e D6 (precedência APP > RL averbada > RL aprovada não averbada > RL proposta).",
+    "SICAR-regularização: o arquivo cobre só AC, MT, PB, RJ e SP (2.391 imóveis) - confirmar que é o conjunto nacional 'Analisado, em regularização ambiental'.",
     "Papel dos embargos PANGIA no cômputo: entram como 'Outros projetos' só pela interseção com a VS (decidido); implementar no passo 2 (classe 4).",
     "ICMBio (adiado em 21/09/2026): quais camadas são projetos; ver análise de atributos e sobreposição (Analise_Atributos_e_Sobreposicao_Projetos_IBAMA_ICMBio.xlsx).",
     "OR: arquivo com 4 feições (uma por bioma, dissolvido) - confirmar que é o conjunto público final.",

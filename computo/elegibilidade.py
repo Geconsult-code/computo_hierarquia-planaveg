@@ -96,3 +96,37 @@ def filtrar_uc(gdf):
 
 def area_publica_apa(gdf_apa, gdf_imoveis_privados):
     raise NotImplementedError
+
+
+def _sem_acento(s: pd.Series) -> pd.Series:
+    """Minúsculas, sem acento e sem símbolos (compara "regularização"/"regularizacao" e "nº"/"n")."""
+    import unicodedata
+    def f(x):
+        if x is None or x is pd.NA or (isinstance(x, float) and np.isnan(x)):
+            return ""
+        t = str(x).replace("º", "").replace("ª", "").replace("°", "")        # NFKD transformaria "º" em "o"
+        t = unicodedata.normalize("NFKD", t).encode("ascii", "ignore").decode()
+        return "".join(ch for ch in t.lower() if ch.isalnum())
+    return s.map(f)
+
+
+def filtrar_car_regularizacao(gdf, regras: dict, area_ha=None):
+    """Elegibilidade da área a recompor (APP/RL) de imóveis do SICAR em regularização ambiental.
+
+    Devolve DataFrame (mesmo índice) com ``elegivel`` (0/1) e ``motivo``.
+    ``area_ha``: área geodésica de cada polígono (para o corte ``area_min_ha``).
+    """
+    n = len(gdf)
+    cond = _sem_acento(gdf["des_condic"]) if "des_condic" in gdf else pd.Series([""] * n, index=gdf.index)
+    ok_cond = (cond == _sem_acento(pd.Series([regras["condicao"]])).iloc[0]).to_numpy(bool)
+    status = _txt(gdf["ind_status"]) if "ind_status" in gdf else pd.Series([pd.NA] * n, index=gdf.index, dtype="string")
+    ok_status = status.isin(regras["status_car"]).fillna(False).to_numpy(bool)
+    ok_area = np.ones(n, dtype=bool)
+    if area_ha is not None:
+        ok_area = np.asarray(area_ha, dtype=float) > regras.get("area_min_ha", 0.0)
+    motivo = np.select(
+        [~ok_cond, ~ok_status, ~ok_area],
+        ["condição do imóvel diferente de 'Analisado, em regularização ambiental'",
+         f"status do cadastro fora de {regras['status_car']}", "área desprezível (<= area_min_ha)"],
+        default="premissa: área a recompor de imóvel em regularização ambiental")
+    return pd.DataFrame({"elegivel": (ok_cond & ok_status & ok_area).astype(int), "motivo": motivo}, index=gdf.index)

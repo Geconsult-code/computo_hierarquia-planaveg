@@ -143,6 +143,89 @@ def teste_sem_dado_pessoal_no_insumo():
         assert campo in c.COLUNAS_PESSOAIS_RECOOPERAR
 
 
+def teste_elegibilidade_car_regularizacao():
+    import pandas as pd
+    import config_computo as c
+    from computo.elegibilidade import filtrar_car_regularizacao
+    E = c.ELEGIBILIDADE_CAR_REG
+    g = pd.DataFrame({
+        "des_condic": ["Analisado, em regularizacao ambiental (Lei n 12.651/2012)",       # como vem no arquivo (sem acento e sem "º")
+                       "Analisado, em regularização ambiental (Lei nº 12.651/2012)",       # como está no config
+                       "Analisado, sem pendência", "Analisado, em regularizacao ambiental (Lei n 12.651/2012)",
+                       "Analisado, em regularizacao ambiental (Lei n 12.651/2012)"],
+        "ind_status": ["AT", "PE", "AT", "CA", "SU"]})
+    r = filtrar_car_regularizacao(g, E, area_ha=[1.0, 2.0, 3.0, 4.0, 0.0])
+    assert r["elegivel"].tolist() == [1, 1, 0, 0, 0], r
+    assert "condição" in r["motivo"].iloc[2] and "status" in r["motivo"].iloc[3] and "desprez" in r["motivo"].iloc[4]
+    assert all(t in c.PRECEDENCIA_CAR_REG for t in ("APP_ESCADINHA", "ARL_AVERBADA", "ARL_APROVADA_NAO_AVERBADA", "ARL_PROPOSTA"))
+    assert c.PRECEDENCIA_CAR_REG[0] == "APP_ESCADINHA"                                     # APP > RL (seção 4.3)
+
+
+def teste_subtrair_precedentes():
+    import numpy as np
+    import shapely
+    from computo.geometria import area_ha
+    from computo.hierarquia import subtrair_precedentes
+    seg = lambda g: shapely.segmentize(g, 0.005)
+    pecas = np.array([seg(shapely.box(-50.00, -10.00, -49.90, -9.90)),        # metade coberta
+                      seg(shapely.box(-50.00, -10.00, -49.95, -9.95)),        # totalmente coberta
+                      seg(shapely.box(-40.00, -10.00, -39.95, -9.95))], dtype=object)   # isolada
+    prec = np.array([seg(shapely.box(-49.95, -10.05, -49.80, -9.80)), seg(shapely.box(-50.10, -10.10, -49.94, -9.94))], dtype=object)
+    rest, ret = subtrair_precedentes(pecas, prec)
+    a = area_ha(pecas)
+    assert rest[1] is None and abs(ret[1] - a[1]) < 1e-3 * a[1]
+    assert abs(ret[2]) < 1e-9 and abs(area_ha([rest[2]])[0] - a[2]) < 1e-6
+    assert abs(ret[0] + area_ha([rest[0]])[0] - a[0]) < 1e-6 * a[0]                  # retirada + restante = inteira
+    assert shapely.intersection(rest[0], shapely.union_all(prec)).area < 1e-12          # o restante não toca os precedentes
+    r2, ret2 = subtrair_precedentes(pecas, np.array([], dtype=object))                  # sem classes anteriores: nada muda
+    assert (ret2 == 0).all() and all(x is not None for x in r2)
+
+
+def teste_pedacos_vs_em_poligonos(tmp=None):
+    """Cruzamento com camadas de VS brutas: peças, atributos e camada sem CRS declarado."""
+    import tempfile
+    from pathlib import Path
+    import geopandas as gpd
+    import numpy as np
+    import shapely
+    from computo.geometria import area_ha
+    from computo.vs import atributos_vs, pedacos_em_poligonos
+    d = Path(tempfile.mkdtemp())
+    box = lambda x0, y0, x1, y1: shapely.segmentize(shapely.box(x0, y0, x1, y1), 0.005)
+    # VS "2022": dois polígonos; VS "2024": um, sobre o mesmo local do segundo (não deve ser somado se for outra camada/bioma)
+    vs22 = gpd.GeoDataFrame({"id": [1, 2], "ano": ["2022", "2022"]}, geometry=[box(-50.00, -10.00, -49.98, -9.98), box(-49.90, -10.00, -49.85, -9.95)], crs=4674)
+    vs24 = gpd.GeoDataFrame({"id": [7], "ano": ["2024"]}, geometry=[box(-49.90, -10.00, -49.88, -9.98)], crs=4674)
+    f22, f24 = d / "vs22.gpkg", d / "vs24.gpkg"
+    vs22.to_file(f22, layer="L22", driver="GPKG")
+    import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        vs24.set_crs(None, allow_override=True).to_file(f24, layer="L24", driver="GPKG")   # camada sem CRS declarado
+    # polígonos: A (cobre o VS 1 e metade do 2), B no mesmo imóvel (sobrepõe A no VS 2), C longe de tudo
+    A = box(-50.02, -10.02, -49.88, -9.97); B = box(-49.92, -10.02, -49.86, -9.96); C = box(-30, -10, -29.9, -9.9)
+    geoms = np.array([A, B, C], dtype=object)
+    ids = np.array(["A", "B", "C"]); grupos = np.array(["im1", "im1", "im2"])
+    camadas = [("vs22.gpkg", "L22", "Cerrado", "2022"), ("vs24.gpkg", "L24", "Amazonia", "2024")]
+    ped = pedacos_em_poligonos(geoms, ids, grupos, camadas, d)
+    assert set(ped["id_proj"]) == {"A", "B"} and "C" not in set(ped["id_proj"])
+    at = atributos_vs(ped, ids, area_ha(geoms), ["Amazonia", "Cerrado"])
+    esperado_A = area_ha([shapely.intersection(A, shapely.union_all([vs22.geometry[0], vs22.geometry[1], vs24.geometry[0]]))])[0]
+    assert abs(at["area_ha"].iloc[0] - esperado_A) < 1e-6 * esperado_A
+    assert at["tem"].tolist() == [1, 1, 0] and at["n_pol"].iloc[0] == 3 and at["pct"].iloc[2] == 0
+    assert at["ha_amazonia"].iloc[0] > 0 and at["ha_cerrado"].iloc[0] > at["ha_amazonia"].iloc[0]
+    # união: a VS 2024 está dentro do VS 2022 nº 2; a área da VS de A não pode ultrapassar a área do polígono
+    assert at["area_ha"].iloc[0] <= area_ha([A])[0]
+
+
+def teste_config_vs_camadas():
+    import config_computo as c
+    assert set(c.VS_CAMADAS) == set(c.VS_VERSOES)
+    assert [b for _, _, b, _ in c.VS_CAMADAS["vs22q"]] == c.BIOMAS_VS and all(a == "2022" for *_, a in c.VS_CAMADAS["vs22q"])
+    v24 = {b: a for _, _, b, a in c.VS_CAMADAS["vs2224q"]}
+    assert v24["Amazonia"] == "2024" and v24["Cerrado"] == "2024"
+    assert all(v24[b] == "2022" for b in ("Caatinga", "Mata_Atlantica", "Pampa", "Pantanal")) and len(v24) == 6
+
+
 if __name__ == "__main__":
     testes = [v for k, v in sorted(globals().items()) if k.startswith("teste_")]
     for t in testes:
