@@ -553,8 +553,8 @@ def teste_uniao_por_imovel():
                       "geometry": pecas})
     d["area_ha_geo"] = area_ha(np.array(pecas, dtype=object))
     d["area_ha_arq"] = d["area_ha_geo"]
-    u, n_vazias, n_corr = car.unir_por_imovel(d)
-    assert len(u) == 3 and n_vazias == 0 and n_corr == 0
+    u, n_vazias, n_corr, n_robusta = car.unir_por_imovel(d)
+    assert len(u) == 3 and n_vazias == 0 and n_corr == 0 and n_robusta == 0
     a = u[u["cod_imovel"] == "A"].iloc[0]
     esperado = area_ha([_box(0, 0, 1.5, 1)])[0]
     assert a["n_pecas"] == 3 and abs(area_ha([a["geometry"]])[0] - esperado) < 1e-6 * esperado
@@ -577,6 +577,31 @@ def teste_uniao_verificada_cobre_as_pecas():
     u1, n1 = car.uniao_verificada(P[:1])
     assert u1 is P[0] and n1 == 0
     assert car.uniao_verificada(np.array([None], dtype=object)) == (None, 0)
+
+
+def teste_uniao_grade_fallback_par_a_par():
+    """GO, MG e PA pararam a UF inteira quando shapely.union_all lançou GEOSException mesmo com grade e make_valid (achado da rodada
+    nacional v0.7.1). Com union_all sempre falhando (simulado), uniao_grade deve cair até a união par a par e ainda acertar a área."""
+    import numpy as np
+    import shapely
+    from shapely.errors import GEOSException
+    from computo import car
+    from computo.geometria import area_ha
+    pecas = np.array([_box(0, 0, 1, 1), _box(0.5, 0.5, 1.5, 1.5), _box(1, 1, 2, 2), _box(0.2, 0.2, 0.3, 0.3)], dtype=object)
+    esperado = area_ha([car.uniao_grade(pecas)])[0]
+    original = shapely.union_all
+
+    def falha(*a, **kw):
+        raise GEOSException("simulado: side location conflict")
+
+    shapely.union_all = falha
+    try:
+        contador = []
+        u = car.uniao_grade(pecas, contador)
+    finally:
+        shapely.union_all = original
+    assert contador == [4]           # todos os níveis com union_all falharam (0 a 3); só a união par a par (nível 4) funcionou
+    assert abs(area_ha([u])[0] - esperado) < 1e-9
 
 
 def teste_sobreposicao_com_grandes():

@@ -37,6 +37,20 @@ A conferência independente (união de todas as peças menos as classes anterior
 "cobertura corrigida em N peças" se isso ocorrer). Com a grade, a cobertura falhou em 0 dos 1.691 imóveis do AC. `geometria.clip_seguro` trata o outro erro
 do GEOS que apareceu (anel degenerado no recorte).
 
+## Achado: em imóveis com muitas peças sobrepostas, a própria união com grade pode falhar
+
+Na rodada nacional (v0.7.1), GO, MG e PA pararam com `GEOSException` dentro de `car.uniao_grade` ("side location conflict" em GO e MG, "unable
+to assign free hole to a shell" em PA) — nos três casos na APP (Habilitados ou Analisados+Não analisados), classes com centenas de milhares de
+peças. A união com grade (e a mesma união repetida com `make_valid`) não deu conta de algum imóvel com peças muito sobrepostas nessas UFs; sem um
+recurso a mais, o script parava a UF inteira. `car.uniao_grade` agora tenta, em ordem, até funcionar: grade (1e-9°); grade com as peças corrigidas
+por `make_valid` (como antes); grade mais grossa (1e-6°, funde vértices quase coincidentes); sem grade (precisão flutuante do GEOS, outro caminho
+de código no GEOS); e, como último recurso, união par a par por divisão binária (sempre funciona, pois nunca envolve mais de duas geometrias por
+vez). Cada nível além do primeiro é contado e aparece no log ("união robusta em N imóveis"); a conferência de cobertura de `uniao_verificada`
+roda do mesmo jeito depois, então um resultado desse caminho é conferido como qualquer outro. Testado com uma falha simulada de `union_all` (todas
+as tentativas com grade e sem grade falhando): a união par a par produziu a área correta. Não foi possível reproduzir a peça exata que travava em
+GO, MG ou PA na nuvem (arquivos grandes demais para o teste); recomendo rodar essas três UFs de novo e conferir no log se "união robusta" aparece
+e se as conferências fecham.
+
 ## Conferências (por UF, versão, classe e bloco; `T9_conferencias.csv`, `T10_...`, `T11_...`)
 
 Identidade de área por imóvel (peças = sobreposição no imóvel + classes anteriores + na classe + líquida); soma dos fragmentos UF x bioma = líquida; área fora dos limites do IBGE;

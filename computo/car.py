@@ -152,25 +152,58 @@ def preparar_pecas(d):
 GRADE = 1e-9     # graus (~0,1 mm): grade da união com precisão fixa
 
 
-def uniao_grade(geoms):
+def _uniao_par_a_par(g):
+    """União par a par por divisão binária (último recurso, quando nem a união sem grade funciona): reduz a lista pela metade a cada
+    rodada (O(log n) uniões), sempre com ``make_valid`` antes de unir."""
+    g = [shapely.make_valid(x) for x in g]
+    while len(g) > 1:
+        prox = []
+        for i in range(0, len(g) - 1, 2):
+            prox.append(shapely.make_valid(shapely.union(g[i], g[i + 1])))
+        if len(g) % 2:
+            prox.append(g[-1])
+        g = prox
+    return g[0]
+
+
+def uniao_grade(geoms, contador=None):
     """União com precisão fixa (grade de 1e-9 grau). A união comum do GEOS, com peças duplicadas e sobrepostas, às vezes descarta trechos
-    inteiros SEM lançar erro (no AC, 3 ha em 4 imóveis; achado pela conferência independente); com grade a sobreposição é robusta."""
+    inteiros SEM lançar erro (no AC, 3 ha em 4 imóveis; achado pela conferência independente); com grade a sobreposição é robusta.
+
+    Em grupos grandes e muito sobrepostos, a própria união com grade pode lançar ``GEOSException`` (visto em GO, MG e PA: "side location
+    conflict", "unable to assign free hole to a shell") mesmo depois de ``make_valid``. Nesse caso a união tenta, em ordem: grade com as
+    peças corrigidas; grade mais grossa (funde vértices quase coincidentes); sem grade (precisão flutuante do GEOS); e, por fim, união par a
+    par por divisão binária. Se ``contador`` (lista) for passado, um nível de robustez além do primeiro (índice > 0) é registrado nela."""
     g = np.array([x for x in geoms if x is not None and not x.is_empty], dtype=object)
     if len(g) == 0:
         return None
     if len(g) == 1:
         return g[0]
-    try:
-        u = shapely.union_all(g, grid_size=GRADE)
-    except GEOSException:
-        u = shapely.union_all(np.array([shapely.make_valid(x) for x in g], dtype=object), grid_size=GRADE)
-    return geo.so_poligonos(u)
+    tentativas = [
+        lambda gg: shapely.union_all(gg, grid_size=GRADE),
+        lambda gg: shapely.union_all(np.array([shapely.make_valid(x) for x in gg], dtype=object), grid_size=GRADE),
+        lambda gg: shapely.union_all(np.array([shapely.make_valid(x) for x in gg], dtype=object), grid_size=GRADE * 1000),
+        lambda gg: shapely.union_all(np.array([shapely.make_valid(x) for x in gg], dtype=object)),
+        lambda gg: _uniao_par_a_par(gg),
+    ]
+    erro = None
+    for nivel, tentativa in enumerate(tentativas):
+        try:
+            u = tentativa(g)
+            if nivel > 0 and contador is not None:
+                contador.append(nivel)
+            return geo.so_poligonos(u)
+        except GEOSException as e:
+            erro = e
+    raise erro
 
 
-def uniao_verificada(pecas):
-    """(união das peças, nº de peças cuja cobertura precisou ser corrigida). A união usa grade e é conferida: cada peça deve estar dentro dela."""
+def uniao_verificada(pecas, contador=None):
+    """(união das peças, nº de peças cuja cobertura precisou ser corrigida). A união usa grade e é conferida: cada peça deve estar dentro dela.
+
+    ``contador``: repassado a ``uniao_grade`` (ver lá); acumula um registro por chamada que precisou de robustez além da grade padrão."""
     g = np.array([x for x in pecas if x is not None and not x.is_empty], dtype=object)
-    u = uniao_grade(g)
+    u = uniao_grade(g, contador)
     if u is None or len(g) < 2:
         return u, 0
     corrigidas = 0
@@ -188,7 +221,7 @@ def uniao_verificada(pecas):
         if len(viol) == 0:
             break
         corrigidas += len(viol)
-        u = uniao_grade([u] + list(r[viol]))
+        u = uniao_grade([u] + list(r[viol]), contador)
     return u, corrigidas
 
 
@@ -200,7 +233,7 @@ def unir_por_imovel(d):
     a_arq = d["area_ha_arq"].to_numpy(float)
     a_geo = d["area_ha_geo"].to_numpy(float)
     grupos = d.groupby(CHAVE_IMOVEL, sort=True, dropna=False).indices
-    ug, primeira, n_p, s_arq, s_geo, n_corr = [], [], [], [], [], 0
+    ug, primeira, n_p, s_arq, s_geo, n_corr, n_robusta = [], [], [], [], [], 0, 0
     for _, pos in grupos.items():
         primeira.append(pos[0])
         n_p.append(len(pos))
@@ -209,8 +242,10 @@ def unir_por_imovel(d):
         if len(pos) == 1:
             ug.append(geoms[pos[0]])
         else:
-            un, nc = uniao_verificada(geoms[pos])
+            contador = []
+            un, nc = uniao_verificada(geoms[pos], contador)
             n_corr += nc
+            n_robusta += bool(contador)
             ug.append(geo.so_poligonos(un) if un is not None else None)
     primeira = np.array(primeira, dtype=int)
     u = d.iloc[primeira][CHAVE_IMOVEL + ["uf_car", "des_condic"]].reset_index(drop=True)
@@ -219,7 +254,7 @@ def unir_por_imovel(d):
     u["area_pecas_geo_ha"] = s_geo
     u["geometry"] = ug
     vazio = np.array([g is None or g.is_empty for g in ug])
-    return u[~vazio].reset_index(drop=True), int(vazio.sum()), n_corr
+    return u[~vazio].reset_index(drop=True), int(vazio.sum()), n_corr, n_robusta
 
 
 def ordem_precedencia(u) -> np.ndarray:
@@ -322,7 +357,7 @@ def processar_classe(classe, d, prior, cel, tag, log=None, conferencia="auto"):
     def chk(nome, valor, limite, obs=""):
         conf.append({"conferencia": f"{tag}: {nome}", "valor": float(valor), "limite": float(limite), "ok": bool(abs(valor) <= limite), "obs": obs})
 
-    u, n_vazias, n_corr = unir_por_imovel(d)
+    u, n_vazias, n_corr, n_robusta = unir_por_imovel(d)
     n = len(u)
     geoms = np.array(u["geometry"].values, dtype=object)
     a_uni = geo.area_ha(geoms)
@@ -330,7 +365,8 @@ def processar_classe(classe, d, prior, cel, tag, log=None, conferencia="auto"):
     sobre_imovel = a_pec - a_uni
     sobre_imovel = np.where(np.abs(sobre_imovel) < 1e-6, 0.0, sobre_imovel)          # ruído geodésico (-0.0)
     lg(f"  {len(d):,} peças -> {n:,} imóveis x bioma (união por imóvel: {sobre_imovel.sum():,.1f} ha de sobreposição interna"
-       + (f"; cobertura corrigida em {n_corr:,} peças" if n_corr else "") + ")")
+       + (f"; cobertura corrigida em {n_corr:,} peças" if n_corr else "")
+       + (f"; união robusta em {n_robusta:,} imóveis" if n_robusta else "") + ")")
     atual, retiradas = geoms.copy(), {}
     for cod, gp in prior:
         iv = np.where(np.array([x is not None for x in atual]))[0]

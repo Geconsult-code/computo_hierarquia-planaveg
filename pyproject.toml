@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "computo-planaveg"
-version = "0.7.0"
+version = "0.7.1"
 description = "Cômputo Planaveg 2026: hierarquia de sobreposições para o reporte de áreas em recuperação da vegetação nativa"
 readme = "README.md"
 requires-python = ">=3.10"
