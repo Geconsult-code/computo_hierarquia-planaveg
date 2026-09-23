@@ -118,6 +118,25 @@ def _op_um(op, a, b):
     return None
 
 
+def _reparar_saida(out):
+    """``shapely.difference``/``intersection`` às vezes devolvem uma geometria tecnicamente inválida SEM lançar erro (achado na rodada
+    nacional das classes 9 a 11: líquidos inválidos em SP, RO e TO, sem exceção nenhuma no caminho). Corrige as poucas que vierem
+    inválidas; ``shapely.is_valid`` é vetorizado, então não custa nada quando (o normal) tudo já está válido."""
+    if len(out) == 0:
+        return out
+    cheias = np.array([g is not None and not g.is_empty for g in out])
+    if not cheias.any():
+        return out
+    ok = np.ones(len(out), dtype=bool)
+    ok[cheias] = shapely.is_valid(out[cheias])
+    for i in np.where(~ok)[0]:
+        try:
+            out[i] = so_poligonos(shapely.make_valid(out[i]))
+        except GEOSException:
+            out[i] = so_poligonos(out[i].buffer(0))
+    return out
+
+
 def _lote(op, a, b):
     a = np.asarray(a, dtype=object)
     b = np.asarray(b, dtype=object)
@@ -130,7 +149,7 @@ def _lote(op, a, b):
         except GEOSException:
             for k in range(i, j):
                 out[k] = _op_um(op, a[k], b[k])
-    return out
+    return _reparar_saida(out)
 
 
 def intersecao_robusta(a, b):

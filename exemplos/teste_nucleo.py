@@ -540,6 +540,23 @@ def teste_clip_seguro():
     assert r.bounds == (1.0, 1.0, 2.0, 2.0) and abs(r.area - 1.0) < 1e-12          # área planar do recorte 1 x 1
 
 
+def teste_reparar_saida_difference_invalida():
+    """shapely.difference/intersection às vezes devolvem uma geometria tecnicamente inválida SEM lançar erro (achado na rodada nacional
+    das classes 9 a 11: líquidos inválidos em SP, RO e TO). diferenca_robusta deve corrigir isso antes de devolver."""
+    import numpy as np
+    import shapely
+    from computo.geometria import diferenca_robusta
+    bowtie = shapely.Polygon([(0, 0), (2, 2), (2, 0), (0, 2), (0, 0)])           # auto-interseção clássica: inválida
+    assert not shapely.is_valid(bowtie)
+    original = shapely.difference
+    shapely.difference = lambda a, b, **kw: np.array([bowtie] * len(a), dtype=object)
+    try:
+        r = diferenca_robusta(np.array([_box(0, 0, 1, 1)], dtype=object), np.array([_box(5, 5, 6, 6)], dtype=object))
+    finally:
+        shapely.difference = original
+    assert r[0] is not None and shapely.is_valid(r[0])
+
+
 def teste_uniao_por_imovel():
     """Peças duplicadas e sobrepostas do mesmo imóvel viram uma só; imóveis, categorias e biomas diferentes ficam separados."""
     import numpy as np
