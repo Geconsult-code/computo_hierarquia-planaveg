@@ -387,6 +387,8 @@ def preparar_or(log):
     polígonos, sem filtro de status (o arquivo não traz mais 'hierarquia'; o campo 'ProjAtivo', quando existir, também não
     filtra nada). `fid_orig` vem do FID do próprio GeoPackage (com_fid=True em `io.ler_camada`), único por definição, e serve
     de base para um `id_proj` único (o ORR 2025 usava só o bioma, porque tinha 1 polígono por bioma)."""
+    import time
+
     import geopandas as gpd
     import shapely
 
