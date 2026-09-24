@@ -703,7 +703,7 @@ def classe_or(log):
         a_liq = geo.area_ha(liquidos)
         log(f"  sobreposição entre polígonos do ORR: {sobre_intra.sum():,.2f} ha | líquida {a_liq.sum():,.1f} ha")
         log("  UF x bioma e VS:")
-        cel = tabela_celulas(geoms, liquidos, lim, {p: vs[p]}, [p], log=log, cada=1)
+        cel = tabela_celulas(geoms, liquidos, lim, {p: vs[p]}, [p], log=log, cada=1000)
         R[p] = dict(prec=prec, retiradas=retiradas, sobre_prec=sobre_prec, sobre_intra=sobre_intra, n_prec=n_prec, liquidos=liquidos,
                     a_liq=a_liq, cel=cel, principais=resumo_uf_bioma_por_poligono(cel, n))
 
@@ -760,7 +760,7 @@ def classe_or(log):
 
     linhas = []
     for p in P:
-        for nome, sub in [("TOTAL", pol)] + [(f"bioma/{b}", pol[pol["bioma_fonte"] == b]) for b in pol["bioma_fonte"]]:
+        for nome, sub in [("TOTAL", pol)] + [(f"bioma/{b}", pol[pol["bioma_fonte"] == b]) for b in sorted(pol["bioma_fonte"].unique())]:
             r = {"grupo": f"{p}/{nome}", "n_poligonos": len(sub), "area_poligonos_inteiros_ha": sub["area_ha_geo"].sum()}
             for cod in R[P[0]]["retiradas"]:
                 r[f"sobreposicao_{cod.lower()}_ha"] = sub[f"{p}_sobreposta_{cod.lower()}_ha"].sum()
