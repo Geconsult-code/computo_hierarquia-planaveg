@@ -83,8 +83,8 @@ ARQ_OUT_CAR = anteriores.ARQ_OUT_CAR_REG
 ARQ_IN_EMB = "IN_Embargos_PANGIA_20260920.gpkg"
 ARQ_VS_EMB = "IN_Embargos_PANGIA_20260920_VS.gpkg"
 ARQ_OUT_EMB = anteriores.ARQ_OUT_EMB
-ARQ_IN_OR = "IN_OR_2025.gpkg"
-ARQ_VS_OR = "IN_OR_2025_VS.gpkg"
+ARQ_IN_OR = "IN_OR_2026.gpkg"
+ARQ_VS_OR = "IN_OR_2026_VS.gpkg"
 ARQ_OUT_OR = anteriores.ARQ_OUT_OR
 
 
@@ -652,7 +652,11 @@ def classe_outros_projetos(log, so_primeiros=None):
 
 
 def classe_or(log):
-    """Classe 5: Observatório da Restauração. Área total dos polígonos; subtrai as classes 1, 3 e 4 (por versão da VS)."""
+    """Classe 5: Observatório da Restauração. Área total dos polígonos; subtrai as classes 1, 3 e 4 (por versão da VS).
+
+    Desde o ORR 2026, ``IN_OR`` traz um polígono por projeto (86 mil, contra 4 do ORR 2025 dissolvido por bioma) e projetos
+    podem se sobrepor entre si (submissões distintas cobrindo a mesma área); a precedência entre eles é só o ``fid_orig``
+    (menor primeiro), como não há outro critério nos dados de origem."""
     import geopandas as gpd
     import pyogrio
 
@@ -670,7 +674,7 @@ def classe_or(log):
     log(f"IN_OR: {n} polígonos, {a_bruta.sum():,.1f} ha (área total)")
     vs = {p: PedacosVS(np.array(pyogrio.read_dataframe(str(arq_vs), layer=f"{p}_pedacos", columns=["id_proj"]).geometry.values, dtype=object)) for p in P}
     lim = _carregar_limites()
-    # sobreposição entre os polígonos do ORR (dissolvidos por bioma: esperada zero); precedência pelo FID de origem
+    # sobreposição entre projetos do ORR: esperada > 0 desde o ORR 2026 (nível de projeto); precedência pelo FID de origem
     prioridade = np.argsort(np.argsort(g["fid_orig"].astype(int).to_numpy() * 10 + np.arange(n)))
     R, liqs = {}, {}
     for p in P:
@@ -796,9 +800,13 @@ def classe_or(log):
         conf.append({"conferencia": nome, "valor": valor, "limite": limite, "ok": bool(abs(valor) <= limite), "obs": obs})
 
     chk("área geodésica - área declarada no arquivo (ha, soma dos polígonos)", float(a_bruta.sum() - g["area_decl_ha"].sum()), 0.001 * float(a_bruta.sum()),
-        "o campo Area_ha do ORR foi calculado em projeção equivalente; devem coincidir dentro de 0,1%")
+        "o campo de área do ORR foi calculado em projeção equivalente; devem coincidir dentro de 0,1%")
     U = geo.uniao_robusta(list(geoms))
-    chk("soma dos polígonos - área da união (ha): polígonos do ORR disjuntos", float(a_bruta.sum() - geo.area_ha([U])[0]), 1e-3 + 1e-7 * float(a_bruta.sum()))
+    sobre_bruta = float(a_bruta.sum() - geo.area_ha([U])[0])
+    chk("soma dos polígonos - área da união (ha): sobreposição entre projetos do ORR", sobre_bruta, 0.5 * float(a_bruta.sum()),
+        "informativo desde o ORR 2026 (nível de projeto): diferente do ORR 2025 (4 polígonos dissolvidos por bioma, sem sobreposição "
+        "por construção), projetos podem se sobrepor entre si (submissões distintas na mesma área); a área líquida abaixo já trata "
+        "essa sobreposição pela precedência de fid_orig, então o valor aqui é só para acompanhar a magnitude")
     for p in P:
         r = R[p]
         a_liq, cel, prec = r["a_liq"], r["cel"], r["prec"]

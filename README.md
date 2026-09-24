@@ -5,11 +5,13 @@ reporte da meta nacional do Planaveg 2025-2028, seguindo o Relatório Técnico *
 Monitoramento Geoespacial e Reporte de Áreas em Processo de Recuperação da Vegetação Nativa*
 (MMA / Conaveg, setembro de 2026).
 
-> **Status: v0.7.2 - classes 1 (Recooperar 2026), 3 (SICAR-regularização), 4 (Outros projetos: embargos PANGIA), 5 (OR),
+> **Status: v0.7.3 - classes 1 (Recooperar 2026), 3 (SICAR-regularização), 4 (Outros projetos: embargos PANGIA), 5 (OR),
 > 6 (TI), 7 (UC), 8 (Manguezal), 9 (APP), 10 (AUR) e 11 (RL) implementadas.** Passos 1 e 2 funcionam para as classes de projetos (1, 3 e 5: área
 > completa dos polígonos, com os atributos de VS na tabela; classe 4: só a VS dentro do embargo), o passo 3 para as classes de governança 6 a 8
 > (a área da classe é a VS qualificada dentro do território; APAs só na área pública) e o passo 3b para as classes do CAR 9 a 11 (VS qualificada em
 > APP, AUR e RL dos imóveis selecionados, por UF, com os Habilitados à frente dos demais imóveis). Cada classe subtrai as anteriores.
+> Em 24/09/2026: classe 5 trocada para o ORR 2026 (nível de projeto, ~86 mil polígonos) e a área pública das APAs (classe 7) passou a recuperar como
+> pública a parte do CAR marcada como imóvel público pelo SIGEF (`SIGEF_Publico_em_APA.gpkg`) - ainda sem rodada nacional com as duas mudanças.
 > Pendentes: o ICMBio (parte da classe 4) e os passos 4 a 7. Regras do Recooperar, da classe 3, da classe 4 (E1 a E4), da TI (T1) e da UC (U1) confirmadas
 > em 21/09/2026. Decisões abertas: `PENDENCIAS`, em `config_computo.py`. Método e saídas: `docs/tier1_recooperar.md`, `docs/tier3_car_regularizacao.md`,
 > `docs/tier4_outros_projetos.md`, `docs/tier5_or.md`, `docs/tier6_8_governanca_publica.md` e `docs/tier9_11_car.md`.
@@ -122,4 +124,4 @@ Ficam em `GEODATABASE\GEOPACKAGE` (caminho em `config_computo.py`). O inventári
 ## Licença e citação
 
 MIT (ver `LICENSE`). Para citar: Braga Meira, M. (2026). *Cômputo Planaveg 2026 - hierarquia de
-sobreposições* (v0.7.2) [software]. Geoconsult Ltda. Ver `CITATION.cff`.
+sobreposições* (v0.7.3) [software]. Geoconsult Ltda. Ver `CITATION.cff`.

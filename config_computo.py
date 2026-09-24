@@ -91,7 +91,8 @@ FONTES = {
         "icmbio_restauracao": "Projetos_com_VegSec/ICMBio_Projetos_Restauracao_2026_com_VegSec.gpkg",   # PENDENTE: quais camadas
         "icmbio_gef_terrestre": "Projetos_com_VegSec/ICMBio_Projetos_GEF_Terrestre_2026_com_VegSec.gpkg",
     },
-    "or": {"arquivo": "ORR_Observatorio_Restauracao_2025_com_area.gpkg", "camada": "Observatorio_da_Restauracao_2025"},   # uso confirmado em 21/09/2026
+    "or": {"arquivo": "ORR_Observatorio_Restauracao_2026.gpkg", "camada": "20260917_ORdados_base_publico",
+           "campo_bioma": "Bioma", "campo_area": "AreaCalc_h"},   # trocado para o ORR 2026 em 24/09/2026 (decisão abaixo)
     "monitorad": None,   # NÃO ENTRA no cômputo 2026 (dados ainda não recebidos)
     # --- Camada 1 (Governança) ---
     # Classes 6 a 8: entram as peças "VS qualificada x território" dos cruzamentos já calculados (uma peça por território x feição de VS).
@@ -124,6 +125,10 @@ FONTES = {
         "arquivo": "Analise_Territorial_CAR-INCRA_dissolvido/CAR_Brasil_Maio2026_Imovel_Area_Total_dissolvido_UF.gpkg",
         "camada": "CAR_BRASIL_Area_Total_dissolvido_UF", "campo_uf": "uf",
     },
+    # SIGEF: imóveis públicos dentro de APAs (2.760 parcelas nacionais) - recupera como pública a parte do CAR total que, dentro
+    # da APA, é na verdade um imóvel público (decisão de 24/09/2026, ver APA_AREA_PUBLICA). Todas as parcelas entram, qualquer
+    # que seja o status (`status`: CERTIFICADA/REGISTRADA; `situacao_i`: REGISTRADA/TITULADANAOREGISTRADA/NAOTITULADA).
+    "sigef_publico_apa": {"arquivo": "SIGEF_Publico_em_APA.gpkg", "camada": "sigefpublico_em_apa"},
     "car_selecionados_dir": "CAR_Maio2026_Imoveis_Selecionados",   # <UF>_CAR_Imoveis_Selecionados_<categoria>.gpkg
     # Cruzamento VS x APP/AUR/RL dos imóveis selecionados (um arquivo por categoria; camadas VS_<APP|AUR|RL>_<categoria>; campos
     # uf, cod_imovel, tipo, bioma, ano, des_condic, area_ha). Cada UF ocupa um bloco contínuo de FIDs.
@@ -265,13 +270,20 @@ PLACEHOLDERS_PANGIA = ["", "Não se aplica", "Nao se aplica", "Não Se Aplica"]
 ELEGIBILIDADE_EMBARGO_PANGIA = {"area_min_ha": 1e-6}   # peça de VS com área <= 0,01 m2 sai
 
 # ---------------------------------------------------------------------------
-# Classe 5 - OR (Observatório da Restauração, formato público) [uso confirmado em 21/09/2026]
+# Classe 5 - OR (Observatório da Restauração, formato público) [uso confirmado em 21/09/2026; fonte trocada para o ORR 2026 em 24/09/2026]
 # ---------------------------------------------------------------------------
-# O arquivo (ORR 2025) traz 4 feições, uma por bioma (Amazônia, Caatinga, Cerrado, Mata Atlântica), já dissolvidas, com 38 mil partes
-# pequenas; não há atributos por projeto. Entra pela ÁREA TOTAL dos polígonos, com ou sem VS (como as classes 1 e 3); a VS
-# fica como atributo. A classe subtrai as classes 1, 3 e 4 (a 4 na versão da VS em cálculo).
-ELEGIBILIDADE_OR = {"hierarquia": "ORR", "area_min_ha": 1e-6}
-NOME_OR = "Observatório da Restauração (ORR 2025, formato público)"
+# Até 23/09/2026 o arquivo (ORR 2025) trazia 4 feições, uma por bioma (Amazônia, Caatinga, Cerrado, Mata Atlântica), já dissolvidas,
+# sem atributos por projeto, e filtradas por 'hierarquia' == 'ORR'. O ORR 2026 (`ORR_Observatorio_Restauracao_2026.gpkg`, camada
+# `20260917_ORdados_base_publico`) veio no nível de projeto (86.281 polígonos, todos com `Privacidad` = "Público"), sem o campo
+# 'hierarquia' e sem 'id_proj' - por isso ELEGIBILIDADE_OR não filtra mais por hierarquia. Decisão de 24/09/2026: usar TODOS os
+# polígonos do ORR 2026, independente de status (`ProjAtivo`: Sim/Não/Não identificado/vazio) - sem filtro de status.
+# Entra pela ÁREA TOTAL dos polígonos, com ou sem VS (como as classes 1 e 3); a VS fica como atributo. A classe subtrai as
+# classes 1, 3 e 4 (a 4 na versão da VS em cálculo). Ao contrário do ORR 2025 (dissolvido, sem sobreposição entre si por
+# construção), o ORR 2026 tem projetos que se sobrepõem entre si (submissões distintas na mesma área); a sobreposição interna
+# deixou de ser um erro esperado e passou a ser tratada como nas outras classes com múltiplos polígonos (embargos, TI, UC):
+# quem tem menor `fid_orig` fica com a área (não há outro critério de prioridade nos dados; `1_preparar_insumos.py` documenta).
+ELEGIBILIDADE_OR = {"area_min_ha": 1e-6}
+NOME_OR = "Observatório da Restauração (ORR 2026, formato público, nível de projeto)"
 CELULA_VS_OR_GRAUS = 0.25    # agrupa as partes em células de 0,25 grau para ler a VS (uma leitura por célula)
 
 # ---------------------------------------------------------------------------
@@ -286,7 +298,8 @@ ELEGIBILIDADE_TI = {
 }
 # UC: todas as categorias do CNUC (proteção integral e uso sustentável). O cruzamento traz também a ZONA DE AMORTECIMENTO
 #     (limite = "za"), que não é UC e fica de fora; só entra limite = "uc". APAs: só a área pública, que é a APA menos os imóveis
-#     do CAR (decisão de 21/09/2026); a parte privada segue o regime dos imóveis (classes APP, AUR e RL).
+#     do CAR (decisão de 21/09/2026), recuperando como pública a parte disso que é imóvel público do SIGEF (decisão de 24/09/2026,
+#     ver APA_AREA_PUBLICA); a parte que continua privada segue o regime dos imóveis (classes APP, AUR e RL).
 #     Sobreposição entre UCs: proteção integral > uso sustentável; fora da APA > APA; esfera federal > estadual > municipal; a mais
 #     antiga (ano de criação); depois o código CNUC. [U1 adotada, a confirmar]
 ELEGIBILIDADE_UC = {
@@ -381,11 +394,16 @@ CAR_ROTULOS_GRUPOS = ["H", "AN"]      # sufixo do bloco nas colunas sobreposta_<
 CAR_CATEGORIAS_PRECEDENCIA = [c for g in CAR_GRUPOS_PRECEDENCIA for c in g]     # Habilitados, Analisados, Nao_Analisados
 # As peças de um mesmo imóvel se sobrepõem no cruzamento (temas de APP sobrepostos, duplicatas): antes da precedência as peças de cada
 # imóvel (categoria, cod_imovel, bioma da VS) são unidas.
-# APAs (decisão de 21/09/2026): área pública = APA menos os imóveis cadastrados no CAR (CAR total dissolvido por UF, sem cancelados).
-APA_AREA_PUBLICA = "APA menos CAR total (CAR_Brasil_Maio2026_Imovel_Area_Total_dissolvido_UF)"
+# APAs (decisão de 21/09/2026, refinada em 24/09/2026): área pública = APA menos os imóveis cadastrados no CAR (CAR total
+# dissolvido por UF, sem cancelados), RECUPERANDO como pública a parte disso que é um imóvel público do SIGEF (todas as
+# parcelas do SIGEF entram, qualquer que seja o status). Implementado em computo.governanca.apa_area_publica.
+APA_AREA_PUBLICA = "(APA menos CAR total) união (SIGEF_Publico_em_APA ∩ APA) - CAR_Brasil_Maio2026_Imovel_Area_Total_dissolvido_UF e SIGEF_Publico_em_APA.gpkg"
 PENDENCIAS = [
     "ICMBio (adiado em 21/09/2026): quais camadas são projetos; ver análise de atributos e sobreposição (Analise_Atributos_e_Sobreposicao_Projetos_IBAMA_ICMBio.xlsx).",
-    "OR: usado o ORR 2025 como entregue (4 feições dissolvidas por bioma, sem Pampa e Pantanal); se sair versão mais nova ou com Pampa/Pantanal, trocar FONTES['or'].",
+    "OR: trocado para o ORR 2026 em 24/09/2026 (nível de projeto, 86.281 polígonos, todos os status - ver comentário de ELEGIBILIDADE_OR); "
+    "se sair versão mais nova, trocar FONTES['or'].",
+    "APA/UC: SIGEF_Publico_em_APA.gpkg incorporado em 24/09/2026 para recuperar como pública a parte do CAR total que é imóvel "
+    "público dentro da APA (ver APA_AREA_PUBLICA e computo.governanca.apa_area_publica) - ainda sem rodada nacional com essa mudança.",
     "Florestas Públicas Não Destinadas (CNFP): fonte do dado.",
     "CAR Regularização: arquivo 'Junho26' com camadas 'Julho26' (2.398 imóveis) - confirmar.",
     # T1 e U1 confirmadas pelo usuário em 21/09/2026:

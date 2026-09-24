@@ -106,15 +106,18 @@ Colunas próprias da tabela de polígonos: `id_proj` (`EMB-<fid>`), `num_tad`, `
 
 ## Saídas da classe 5 (OR: Observatório da Restauração)
 
-Em `Computo_Planaveg_2026\Insumos` e `Computo_Planaveg_2026\Tier5_OR` (ver `docs/tier5_or.md`). Entrada:
-`ORR_Observatorio_Restauracao_2025_com_area.gpkg` (camada `Observatorio_da_Restauracao_2025`; 4 polígonos, um por bioma).
+Em `Computo_Planaveg_2026\Insumos` e `Computo_Planaveg_2026\Tier5_OR` (ver `docs/tier5_or.md`). Entrada desde 24/09/2026:
+`ORR_Observatorio_Restauracao_2026.gpkg` (camada `20260917_ORdados_base_publico`; 86.281 polígonos, um por projeto, todos com
+`Privacidad` = "Público"; até 23/09/2026 a entrada era `ORR_Observatorio_Restauracao_2025_com_area.gpkg`, 4 polígonos dissolvidos
+por bioma). Todos os polígonos entram, sem filtro de status (nem o antigo `hierarquia`, que não existe mais no arquivo, nem o
+`ProjAtivo` do arquivo novo - decisão do usuário em 24/09/2026).
 
 | Arquivo | Conteúdo |
 |---|---|
-| `Insumos\IN_OR_2025.gpkg` (`IN_OR`) | Os 4 polígonos inteiros (2D, reparados), com `id_proj` (`ORR-Amazonia`, `ORR-Caatinga`, `ORR-Cerrado`, `ORR-Mata_Atlantica`), `bioma_fonte`, `hierarquia_fonte`, `area_decl_ha`, `area_ha_geo`, `n_partes`, elegibilidade e os atributos `vs22q_*` e `vs2224q_*` |
-| `Insumos\IN_OR_2025_VS.gpkg` | Peças VS x ORR (`vs22q_pedacos`, `vs2224q_pedacos`) |
-| `Insumos\IN_OR_2025_resumo.csv` / `_excluidos.csv` | Área e VS por polígono e versão; polígonos fora do cômputo (nenhum) |
-| `Tier5_OR\P2_OR_2025.gpkg` | `P2_OR_poligonos` (os 4 polígonos inteiros com sobreposições e área líquida por versão), `P2_OR_vs22q` e `P2_OR_vs2224q` (polígonos líquidos, uma parte por linha, disjuntos entre si e das classes 1, 3 e 4) |
+| `Insumos\IN_OR_2026.gpkg` (`IN_OR`) | Os polígonos inteiros (2D, reparados), com `id_proj` (`ORR-<bioma>-<fid_orig>`, único por projeto), `fid_orig` (FID do GeoPackage de origem), `bioma_fonte`, `area_decl_ha` (campo `AreaCalc_h` do ORR 2026), `area_ha_geo`, `n_partes`, elegibilidade e os atributos `vs22q_*` e `vs2224q_*` |
+| `Insumos\IN_OR_2026_VS.gpkg` | Peças VS x ORR (`vs22q_pedacos`, `vs2224q_pedacos`) |
+| `Insumos\IN_OR_2026_resumo.csv` / `_excluidos.csv` | Área e VS por polígono e versão; polígonos fora do cômputo (geometria vazia ou área desprezível) |
+| `Tier5_OR\P2_OR_2026.gpkg` | `P2_OR_poligonos` (os polígonos inteiros com sobreposições e área líquida por versão), `P2_OR_vs22q` e `P2_OR_vs2224q` (polígonos líquidos, uma parte por linha, disjuntos entre si e das classes 1, 3 e 4) |
 | `T5_areas_uf_bioma.csv`, `T5_resumo_uf_bioma.csv`, `T5_resumo.csv`, `T5_conferencias.csv` | Tabela longa polígono x versão x UF x bioma, resumos e conferências |
 | `T5_acumulado_classes_1_3_4_5.csv` | Área líquida acumulada das classes 1, 3, 4 e 5, por versão da VS, classe, categoria, UF e bioma |
 

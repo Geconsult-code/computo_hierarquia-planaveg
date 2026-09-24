@@ -14,7 +14,7 @@ import shapely
 
 import config_computo as cfg
 from . import io_dados as io
-from .geometria import area_ha, reparar, so_poligonos
+from .geometria import area_ha, diferenca_robusta, intersecao_robusta, reparar, so_poligonos, uniao_par_robusta, uniao_robusta
 from .hierarquia import subtrair_grandes
 
 
@@ -101,8 +101,36 @@ def prioridade_manguezal(d) -> np.ndarray:
 
 
 # ---------------------------------------------------------------------------
-# APAs: área pública = APA menos os imóveis do CAR
+# APAs: área pública = APA menos os imóveis do CAR, com o SIGEF recuperando de volta os imóveis públicos [decisão 24/09/2026]
 # ---------------------------------------------------------------------------
+def _sem_none(geoms):
+    """Troca ``None`` por um polígono vazio: elemento neutro de difference/intersection/union (``shapely`` propaga ``None``
+    como valor ausente, não como geometria vazia - ver ``geometria.uniao_par_robusta``)."""
+    vazio = shapely.Polygon()
+    return np.array([vazio if g is None else g for g in geoms], dtype=object)
+
+
+def _pos_processar(geoms):
+    """``so_poligonos`` em lote, devolvendo ``None`` onde a geometria ficou vazia (padrão do módulo)."""
+    return np.array([so_poligonos(g) for g in geoms], dtype=object)
+
+
+def sigef_publico_uniao(log=None):
+    """União nacional do SIGEF (imóveis públicos em APA, ``cfg.FONTES['sigef_publico_apa']``), ou ``None`` se não configurado."""
+    if "sigef_publico_apa" not in cfg.FONTES:
+        return None
+    fonte = cfg.FONTES["sigef_publico_apa"]
+    arq = cfg.RAIZ / fonte["arquivo"]
+    sg = io.ler_camada(arq, fonte["camada"])
+    partes = partes_do_car(np.array(sg.geometry.values, dtype=object))   # mesmo tratamento de partes grandes/inválidas do CAR
+    uniao = uniao_robusta(list(partes)) if len(partes) else None
+    if log:
+        a = area_ha([uniao])[0] if uniao is not None else 0.0
+        log(f"  SIGEF (imóveis públicos em APA): {len(sg):,} parcelas, {a:,.1f} ha (união nacional)")
+    return uniao
+
+
+
 def dividir_partes_grandes(partes, max_vertices=100_000, grau=0.25):
     """Parte em células de ``grau`` graus as partes com mais de ``max_vertices`` vértices (uma parte do CAR de CE tem 3 milhões).
 
@@ -148,15 +176,21 @@ def partes_do_car(geoms):
 
 
 def apa_area_publica(geoms, log=None):
-    """Subtrai das peças de APA o CAR total (dissolvido por UF, ``cfg.FONTES['car_total']``), uma UF por vez.
+    """Subtrai das peças de APA o CAR total (dissolvido por UF, ``cfg.FONTES['car_total']``), uma UF por vez, e RECUPERA como
+    pública a parte do que foi retirado que cai dentro de um imóvel público do SIGEF (``cfg.FONTES['sigef_publico_apa']``,
+    quando configurado): pública = (APA - CAR total) ∪ (SIGEF ∩ APA) - decisão do usuário em 24/09/2026, porque uma parcela
+    registrada no CAR dentro de uma APA pode ser, na verdade, um imóvel público (o SIGEF marca especificamente essas).
 
-    Devolve (geoms_publicas, retirada_ha): a peça pode ficar inteira, parcial ou vazia (None). A parte retirada é privada
-    (cadastrada no CAR); a VS nela conta, se for o caso, como APP, AUR ou RL dos imóveis elegíveis."""
+    Devolve (geoms_publicas, retirada_ha): a peça pode ficar inteira, parcial ou vazia (None). ``retirada_ha`` já desconta o
+    que foi recuperado pelo SIGEF - é só a parte que continua privada. A VS nela conta, se for o caso, como APP, AUR ou RL
+    dos imóveis elegíveis."""
     fonte = cfg.FONTES["car_total"]
     arq = cfg.RAIZ / fonte["arquivo"]
     campo = fonte["campo_uf"]
     atual = np.array(geoms, dtype=object)
     total = np.zeros(len(atual))
+    recuperado_total = np.zeros(len(atual))
+    sigef_uniao = sigef_publico_uniao(log=log)
     for uf in cfg.UFS:
         car = io.ler_camada(arq, fonte["camada"], colunas=[campo], where=f"{campo} = '{uf}'")
         if len(car) == 0:
@@ -165,13 +199,29 @@ def apa_area_publica(geoms, log=None):
             continue
         partes = partes_do_car(np.array(car.geometry.values, dtype=object))
         vivas = np.where([g is not None for g in atual])[0]
-        rest, ret = subtrair_grandes(atual[vivas], partes)
+        orig = atual[vivas]
+        rest, ret = subtrair_grandes(orig, partes)
+        recuperado = np.zeros(len(vivas))
+        if sigef_uniao is not None and len(vivas):
+            retirado = _pos_processar(diferenca_robusta(_sem_none(orig), _sem_none(rest)))            # o que o CAR tirou
+            sigef_rep = np.full(len(retirado), sigef_uniao, dtype=object)
+            recuperar = _pos_processar(intersecao_robusta(_sem_none(retirado), sigef_rep))            # a parte pública (SIGEF) disso
+            recuperado = area_ha(recuperar)
+            if recuperado.sum() > 0:
+                rest = _pos_processar(uniao_par_robusta(_sem_none(rest), _sem_none(recuperar)))
         atual[vivas] = rest
-        total[vivas] += ret
+        total[vivas] += ret - recuperado
+        recuperado_total[vivas] += recuperado
         if log:
-            log(f"  CAR {uf}: {len(partes)} partes; {int((ret > 0).sum())} peças tocadas; {ret.sum():,.1f} ha privados retirados")
+            msg = f"  CAR {uf}: {len(partes)} partes; {int((ret > 0).sum())} peças tocadas; {ret.sum():,.1f} ha privados retirados"
+            if recuperado.sum() > 0:
+                msg += f"; {recuperado.sum():,.1f} ha recuperados como públicos (SIGEF)"
+            log(msg)
         del car, partes
         _devolver_memoria()
+    if log and sigef_uniao is not None:
+        log(f"  SIGEF: {recuperado_total.sum():,.1f} ha recuperados como públicos no total (de {(total + recuperado_total).sum():,.1f} "
+            f"ha que o CAR teria retirado sem o SIGEF)")
     return atual, total
 
 

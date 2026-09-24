@@ -20,14 +20,16 @@ TI (classe 6), UC (classe 7) e MANGUEZAL (classe 8).
     - As peças "VS x embargo" vêm do cruzamento já feito (FONTES["embargos_pangia"]["cruzamento"], duas versões) e são
       conferidas contra o arquivo de embargos (chave num_tad + serie_tad + seq_tad; peça dentro do polígono).
     OR (classe 5, Observatório da Restauração)
-    - ORR 2025 (4 feições dissolvidas por bioma, EPSG projetado Albers no arquivo; convertido para EPSG:4674), AREA TOTAL dos polígonos,
-      com ou sem VS. Como o arquivo não traz VS, ela é cruzada aqui com as camadas brutas do INPE (VS_CAMADAS): as partes dos polígonos
-      são agrupadas em células de CELULA_VS_OR_GRAUS (uma leitura de VS por célula e camada); atributos vs22q_*/vs2224q_* e peças em arquivo próprio.
+    - ORR 2026 (86.281 polígonos em nível de projeto, EPSG:4674 no próprio arquivo; trocado do ORR 2025 - 4 feições dissolvidas por
+      bioma - em 24/09/2026), AREA TOTAL dos polígonos, com ou sem VS, TODOS os status (decisão do usuário). Como o arquivo não traz
+      VS, ela é cruzada aqui com as camadas brutas do INPE (VS_CAMADAS): as partes dos polígonos são agrupadas em células de
+      CELULA_VS_OR_GRAUS (uma leitura de VS por célula e camada); atributos vs22q_*/vs2224q_* e peças em arquivo próprio.
     TI, UC e MANGUEZAL (classes 6 a 8, Governança: a área da classe é a VS qualificada DENTRO do território)
     - Peças "VS x território" dos cruzamentos já feitos (FONTES["ti"|"uc"|"manguezal"]["cruzamento"], uma por versão da VS), reparadas.
     - TI: só as fases delimitada, declarada, homologada e regularizada (ELEGIBILIDADE_TI). UC: só limite = "uc" (a zona de amortecimento,
-      limite = "za", sai). APAs: só a área pública = APA menos os imóveis do CAR (CAR total dissolvido por UF, FONTES["car_total"]):
-      a parte privada retirada fica registrada e a VS nela conta, se for o caso, como APP, AUR ou RL. Manguezal: toda a VS do ProManguezal.
+      limite = "za", sai). APAs: só a área pública = APA menos os imóveis do CAR (CAR total dissolvido por UF, FONTES["car_total"]),
+      recuperando como pública a parte disso que é imóvel público do SIGEF (FONTES["sigef_publico_apa"], decisão de 24/09/2026):
+      a parte que continua privada fica registrada e a VS nela conta, se for o caso, como APP, AUR ou RL. Manguezal: toda a VS do ProManguezal.
 Ainda não implementado: ICMBio (adiado).
 
 Entradas: FONTES["recooperar"]["arquivo"] (Projetos_com_VegSec\\IBAMA_Projetos_Recooperar_2026_com_VegSec.gpkg);
@@ -42,9 +44,9 @@ Saídas (em config_computo.SAIDA_INSUMOS):
     IN_Embargos_PANGIA_20260920.gpkg         camada IN_EMBARGOS_PANGIA (embargos inteiros com VS em alguma versão; atributos de VS)
     IN_Embargos_PANGIA_20260920_VS.gpkg      peças VS x embargo (vs22q_pedacos, vs2224q_pedacos)
     IN_Embargos_PANGIA_20260920_resumo.csv / _excluidos.csv (embargos sem VS)
-    IN_OR_2025.gpkg                          camada IN_OR (4 polígonos inteiros, atributos de VS)
-    IN_OR_2025_VS.gpkg                       peças VS x ORR (vs22q_pedacos, vs2224q_pedacos)
-    IN_OR_2025_resumo.csv / _excluidos.csv
+    IN_OR_2026.gpkg                          camada IN_OR (86 mil polígonos inteiros, atributos de VS)
+    IN_OR_2026_VS.gpkg                       peças VS x ORR (vs22q_pedacos, vs2224q_pedacos)
+    IN_OR_2026_resumo.csv / _excluidos.csv
     IN_TI_FUNAI20260507.gpkg, IN_UC_CNUC20260507.gpkg, IN_Manguezal_ProManguezal20260508.gpkg
                                              peças elegíveis por versão (camadas vs22q_pedacos e vs2224q_pedacos)
     IN_<TI|UC|Manguezal>_..._resumo.csv / _excluidos.csv
@@ -55,6 +57,7 @@ Execução:  python 1_preparar_insumos.py [recooperar] [car_regularizacao] [emba
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -71,7 +74,7 @@ FONTES_IMPLEMENTADAS = ["recooperar", "car_regularizacao", "embargos_pangia", "o
 NOME_ARQ = "IN_Recooperar_2026"
 NOME_ARQ_CAR = "IN_CAR_Regularizacao_Junho26"
 NOME_ARQ_EMB = "IN_Embargos_PANGIA_20260920"
-NOME_ARQ_OR = "IN_OR_2025"
+NOME_ARQ_OR = "IN_OR_2026"
 NOME_ARQ_TI = "IN_TI_FUNAI20260507"
 NOME_ARQ_UC = "IN_UC_CNUC20260507"
 NOME_ARQ_MANGUEZAL = "IN_Manguezal_ProManguezal20260508"
@@ -377,9 +380,13 @@ def preparar_embargos_pangia(log):
 
 
 def preparar_or(log):
-    """Classe 5: Observatório da Restauração (área total dos polígonos; VS como atributo)."""
-    import time
+    """Classe 5: Observatório da Restauração (área total dos polígonos; VS como atributo).
 
+    Desde o ORR 2026 (24/09/2026), a fonte vem no nível de projeto (86 mil polígonos, sem campo 'hierarquia' e sem 'id_proj'
+    único - ao contrário do ORR 2025, que trazia só 4 feições dissolvidas por bioma). Por decisão do usuário, entram TODOS os
+    polígonos, sem filtro de status (o arquivo não traz mais 'hierarquia'; o campo 'ProjAtivo', quando existir, também não
+    filtra nada). `fid_orig` vem do FID do próprio GeoPackage (com_fid=True em `io.ler_camada`), único por definição, e serve
+    de base para um `id_proj` único (o ORR 2025 usava só o bioma, porque tinha 1 polígono por bioma)."""
     import geopandas as gpd
     import shapely
 
@@ -388,28 +395,27 @@ def preparar_or(log):
     if not arq.exists():
         raise FileNotFoundError(f"Não encontrei {arq}.")
     E = cfg.ELEGIBILIDADE_OR
+    campo_bioma = fonte.get("campo_bioma", "Bioma")
+    campo_area = fonte.get("campo_area", "Area_ha")
     log(f"lendo {arq}")
-    g = io.ler_camada(arq, fonte["camada"])
+    g = io.ler_camada(arq, fonte["camada"], com_fid=True)
     geoms, invalida = geo.reparar(g.geometry.values)
     sem_geom = np.array([x is None or x.is_empty for x in geoms])
     area = geo.area_ha(geoms)
-    hier = g["hierarquia"].astype("string").str.strip().str.upper().fillna("").to_numpy()
-    motivo = np.where(sem_geom, "sem geometria", np.where(hier != E["hierarquia"], f"hierarquia diferente de {E['hierarquia']}",
-                      np.where(area <= E["area_min_ha"], "área desprezível", "")))
-    faltam = sorted(set(g["Bioma"]) - set(cfg.BIOMA_IBGE_PARA_VS))
+    motivo = np.where(sem_geom, "sem geometria", np.where(area <= E["area_min_ha"], "área desprezível", ""))
+    faltam = sorted(set(g[campo_bioma]) - set(cfg.BIOMA_IBGE_PARA_VS))
     assert not faltam, f"bioma sem correspondência em BIOMA_IBGE_PARA_VS: {faltam}"
-    bioma_vs = g["Bioma"].map(cfg.BIOMA_IBGE_PARA_VS)
+    bioma_vs = g[campo_bioma].map(cfg.BIOMA_IBGE_PARA_VS)
     n_partes = np.array([len(shapely.get_parts(x)) if x is not None else 0 for x in geoms])
     out = pd.DataFrame(index=g.index)
-    out["id_proj"] = "ORR-" + bioma_vs
-    out["fonte_dado"] = "ORR_2025"
+    out["fid_orig"] = g["fid_orig"].astype("Int64")
+    out["id_proj"] = "ORR-" + bioma_vs + "-" + out["fid_orig"].astype(str)
+    out["fonte_dado"] = Path(fonte["arquivo"]).stem
     out["categoria"] = "or"
     out["categoria_nome"] = cfg.NOME_OR
     out["camada_orig"] = fonte["camada"]
-    out["fid_orig"] = g["OBJECTID"].astype("Int64")
-    out["bioma_fonte"] = g["Bioma"]
-    out["hierarquia_fonte"] = g["hierarquia"]
-    out["area_decl_ha"] = pd.to_numeric(g["Area_ha"], errors="coerce")
+    out["bioma_fonte"] = g[campo_bioma]
+    out["area_decl_ha"] = pd.to_numeric(g[campo_area], errors="coerce")
     out["area_ha_geo"] = area
     out["n_partes"] = n_partes
     out["elegivel_computo"] = (motivo == "").astype(int)
@@ -450,7 +456,7 @@ def preparar_or(log):
         d["area_ha"] = geo.area_ha(d["geometry"].values)
         io.gravar_camada(gpd.GeoDataFrame(d, geometry="geometry", crs=g.crs), arq_vs, f"{p}_pedacos", primeira=(k == 0))
     exc = out[out["elegivel_computo"] == 0]
-    exc[["id_proj", "bioma_fonte", "hierarquia_fonte", "area_ha_geo", "motivo_elegibilidade", "fid_orig"]].to_csv(
+    exc[["id_proj", "bioma_fonte", "area_ha_geo", "motivo_elegibilidade", "fid_orig"]].to_csv(
         cfg.SAIDA_INSUMOS / f"{NOME_ARQ_OR}_excluidos.csv", index=False, encoding="utf-8-sig")
     linhas = []
     for _, r in ele.iterrows():

@@ -13,6 +13,7 @@ líquido **por versão da VS** (`vs22q`: VS 2022 qualificada; `vs2224q`: Amazôn
 | `...\VS-Unidades_Conservacao\Unidades_Conservacao_CNUC20260507_x_VegSec_[2022-2024_]qualificado.gpkg` | Peças "VS x UC", camada `Unidades_Conservacao_CNUC20260507_vegsec`; 157.985 e 163.065 peças |
 | `...\VS-Pro_Manguezal\Pro-Manguezal_IBAMA20260508_x_VegSec_[2022-2024_]qualificado.gpkg` | Peças "VS x manguezal", camada `Pro_Manguezal_IBAMA20260508_vegsec`; 3.712 e 3.738 peças |
 | `Analise_Territorial_CAR-INCRA_dissolvido\CAR_Brasil_Maio2026_Imovel_Area_Total_dissolvido_UF.gpkg` | CAR total dissolvido por UF (imóveis sem cancelados), só para tirar a área privada das APAs |
+| `SIGEF_Publico_em_APA.gpkg`, camada `sigefpublico_em_apa` | 2.760 parcelas de imóveis públicos dentro de APAs (todos os status); recupera como pública a parte do CAR total acima que é, na verdade, pública (desde 24/09/2026) |
 | Classes 1, 3, 4 e 5 (passo 2) e, na UC e no Manguezal, as classes 6 e 7 | Camadas líquidas por versão, subtraídas |
 | `IBGE_Limite_Estados`, `IBGE_Limite_Biomas` | UF e bioma |
 
@@ -27,7 +28,7 @@ nas três classes) e repara geometrias (nenhuma inválida nas peças).
 | TI: fases | Delimitada, declarada, homologada e regularizada (seção 4.1.1). Ficam de fora "Em estudo" (699 peças, 16,5 mil ha de VS) e "Encaminhada RI" (420 peças, 12,3 mil ha) | Regra do relatório |
 | TI: sobreposição entre TIs | A fase mais avançada fica com a área (regularizada > homologada > declarada > delimitada), depois o menor código da TI | **Adotado (T1), a confirmar.** Só muda a fase à qual a área sobreposta é atribuída, não o total |
 | UC: elegibilidade | Só o limite da UC (`limite = uc`). O cruzamento traz também a zona de amortecimento (`limite = za`), que não é UC e fica de fora (2.305 peças, 15,8 mil ha de VS em vs22q) | Adotado |
-| UC: APAs | Só a área pública: **APA menos o CAR total** (imóveis de qualquer categoria, sem cancelados), por UF. A parte em imóvel do CAR fica registrada (`area_privada_ha`) e a VS nela segue para APP, AUR ou RL (classes 9 a 11) | Decidido (21/09/2026) |
+| UC: APAs | Só a área pública: **(APA menos o CAR total) união (SIGEF ∩ APA)**, por UF. A parte em imóvel do CAR fica registrada (`area_privada_ha`), exceto a que o SIGEF marca como imóvel público (recuperada como pública); a VS que continuar privada segue para APP, AUR ou RL (classes 9 a 11) | Decidido (21/09/2026); SIGEF acrescentado em 24/09/2026 |
 | UC: sobreposição entre UCs | Proteção integral > uso sustentável; fora da APA > APA; federal > estadual > municipal; a mais antiga (`cria_ano`); menor código CNUC | **Adotado (U1), a confirmar.** Só muda a categoria que fica com a área sobreposta, não o total |
 | Manguezal | Toda a VS do ProManguezal (APP em toda a extensão, Art. 4º, VII); sem filtro | Regra do relatório |
 | Precedência dentro da classe | Peça a peça, rank único por peça (`_rank` em `computo/governanca.py`) | - |
@@ -42,17 +43,23 @@ nas três classes) e repara geometrias (nenhuma inválida nas peças).
 5. **UF e bioma** pelas células UF x bioma do IBGE (`CelulasUFBioma`, calculadas uma vez): a peça inteira numa célula não é recortada; só as que cruzam divisas.
    O que sobra fora dos limites do IBGE vira `FORA` (nenhuma área se perde em silêncio).
 
-Na UC, as **APAs** são tratadas no passo 1: cada peça de APA perde a parte coberta pelo CAR total da UF (`subtrair_grandes`). O CAR de cada UF é um polígono dissolvido com dezenas ou
+Na UC, as **APAs** são tratadas no passo 1 (`computo.governanca.apa_area_publica`): cada peça de APA perde a parte coberta pelo CAR total da UF (`subtrair_grandes`); em seguida, o que foi retirado é
+cruzado com a união nacional do `SIGEF_Publico_em_APA.gpkg` (`sigef_publico_uniao`, calculada uma vez) e a parte que cai dentro de um imóvel público do SIGEF volta a ser pública (`uniao_par_robusta`) -
+decisão de 24/09/2026, porque uma parcela registrada no CAR dentro de uma APA pode ser, na prática, um imóvel público. O CAR de cada UF é um polígono dissolvido com dezenas ou
 centenas de milhares de partes (BA: 565 mil; MG: 60 mil partes e 34 milhões de vértices). Partes com mais de 100 mil vértices (uma parte do CAR do CE tem 3 milhões) são divididas em células de
 0,25 grau antes de reparar (`make_valid` numa parte dessas levou mais de 4 minutos; em células, segundos). A área do CAR total reconstituída confere com a gravada no arquivo (`area_ha`) nas UFs conferidas (AC, AP, CE, DF, ES, MG, RR e SE): diferença de 0 a 0,26% (a área do arquivo vem de outro método de cálculo; no MG, 49.861.635 x 49.861.655 ha).
-A UC lê o CAR de cada UF uma vez para as duas versões da VS.
+A UC lê o CAR de cada UF uma vez para as duas versões da VS. O SIGEF (2.760 parcelas, todos os status, união nacional 1.776.487,6 ha) é lido e unido uma única vez, não por UF.
 
 ## Saídas
 
 Ver `docs/dicionario_dados.md` (seção "Saídas das classes 6 a 8"). Em resumo: `Insumos\IN_<TI|UC|Manguezal>_....gpkg` (peças elegíveis), e em `Tier6_TI`, `Tier7_UC` e `Tier8_Manguezal`
 os GeoPackages `P1_...gpkg` com as partes líquidas por versão (`P1_TI_vs22q`, ...) e a tabela de peças, mais `T6_*.csv`, `T7_*.csv` e `T8_*.csv` (resumos, conferências e acumulado das classes já processadas).
 
-## Resultados (validação na nuvem, dados de 21/09/2026)
+## Resultados (validação na nuvem, dados de 21/09/2026 - histórico, anterior ao SIGEF e ao ORR 2026)
+
+**Desatualizado**: os números abaixo são de antes da recuperação SIGEF (item "UC: APAs" em Decisões) e da troca do OR para o ORR 2026 (ver `docs/tier5_or.md`), ambas de 24/09/2026. A recuperação SIGEF
+reduz `area_privada_ha` das APAs e aumenta a VS elegível na classe 7; a mudança do OR também desloca `sobreposta_5_ha`. Ainda sem rodada nacional com essas mudanças - os valores abaixo servem só
+de referência de magnitude/ordem de grandeza até a próxima rodada completa.
 
 Áreas em hectares (geodésicas, GRS80). "VS elegível" é a VS qualificada dentro do território, depois das regras de elegibilidade (e, nas APAs, da retirada da área privada).
 
@@ -102,5 +109,6 @@ A UC pede ~5 GB de memória; o cálculo independente (por componente conexo) foi
 
 - Adotados a confirmar: T1 (sobreposição entre TIs) e U1 (sobreposição entre UCs); só mudam a categoria que fica com a área sobreposta, não o total.
 - O `Id` do ProManguezal vem zerado (não identifica polígono); a precedência dentro da classe usa só o identificador da peça de VS (a sobreposição entre os polígonos do ProManguezal é nula).
-- As APAs usam o CAR total da versão de maio de 2026; a área privada retirada ("imóveis sem cancelados") é a mesma para as duas versões da VS.
+- As APAs usam o CAR total da versão de maio de 2026 e o SIGEF de setembro de 2026 (todos os status); a área privada retirada e a recuperação SIGEF são as mesmas para as duas versões da VS.
+- Os "Resultados" acima são anteriores ao SIGEF e ao ORR 2026 (24/09/2026); pendente uma rodada nacional com as duas mudanças (ver nota na seção Resultados).
 - Classes 9 a 11 (APP, AUR, RL do CAR) e ICMBio: próximas etapas.

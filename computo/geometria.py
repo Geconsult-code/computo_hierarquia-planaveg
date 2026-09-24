@@ -3,7 +3,7 @@
 - ``reparar``: válida passa; senão make_valid; senão buffer(0); mantém só polígonos.
 - ``so_poligonos``: extrai Polygon/MultiPolygon (evita erro mixed-dimension em GeometryCollection).
 - ``area_ha`` / ``area_ha_geodesica``: pyproj.Geod(ellps="GRS80"); mesmo padrão dos outros repositórios.
-- ``intersecao_robusta`` / ``diferenca_robusta``: operações em lote com plano B por par (grid_size).
+- ``intersecao_robusta`` / ``diferenca_robusta`` / ``uniao_par_robusta``: operações em lote (par a par) com plano B por par (grid_size).
 - ``coordenada_absurda``: vértice finito porém fora da caixa do Brasil.
 - ``clip_seguro``: ``clip_by_rect`` com plano B para anéis degenerados.
 """
@@ -101,8 +101,11 @@ def coordenada_absurda(geom) -> bool:
     return bool(x0 < a or x1 > c or y0 < b or y1 > d)
 
 
+_OPS = {"intersection": shapely.intersection, "difference": shapely.difference, "union": shapely.union}
+
+
 def _op_um(op, a, b):
-    nome = {"intersection": shapely.intersection, "difference": shapely.difference}[op]
+    nome = _OPS[op]
     tentativas = (
         lambda: nome(a, b),
         lambda: nome(shapely.make_valid(a), shapely.make_valid(b)),
@@ -141,7 +144,7 @@ def _lote(op, a, b):
     a = np.asarray(a, dtype=object)
     b = np.asarray(b, dtype=object)
     out = np.empty(len(a), dtype=object)
-    f = {"intersection": shapely.intersection, "difference": shapely.difference}[op]
+    f = _OPS[op]
     for i in range(0, len(a), LOTE):
         j = min(i + LOTE, len(a))
         try:
@@ -158,6 +161,14 @@ def intersecao_robusta(a, b):
 
 def diferenca_robusta(a, b):
     return _lote("difference", a, b)
+
+
+def uniao_par_robusta(a, b):
+    """``a[i] união b[i]``, par a par (mesmo padrão de robustez de ``intersecao_robusta``/``diferenca_robusta``).
+
+    ``None`` em ``a`` ou ``b`` NÃO é tratado como vazio aqui (``shapely.union`` propaga ``None``, como as outras operações
+    vetorizadas) - troque por um polígono vazio (``shapely.Polygon()``) antes de chamar, se for esse o caso do chamador."""
+    return _lote("union", a, b)
 
 
 def uniao_robusta(geoms):

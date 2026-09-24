@@ -16,7 +16,7 @@ from .territorio import Limites
 ARQ_OUT_RECOOPERAR = "P2_Recooperar_2026.gpkg"
 ARQ_OUT_CAR_REG = "P2_CAR_Regularizacao_Junho26.gpkg"
 ARQ_OUT_EMB = "P2_Outros_Projetos_PANGIA_20260920.gpkg"
-ARQ_OUT_OR = "P2_OR_2025.gpkg"
+ARQ_OUT_OR = "P2_OR_2026.gpkg"
 ARQ_OUT_TI = "P1_TI_FUNAI20260507.gpkg"
 ARQ_OUT_UC = "P1_UC_CNUC20260507.gpkg"
 ARQ_OUT_MANGUEZAL = "P1_Manguezal_ProManguezal20260508.gpkg"

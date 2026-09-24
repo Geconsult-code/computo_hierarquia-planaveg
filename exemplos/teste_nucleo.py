@@ -455,7 +455,10 @@ def teste_config_camada1():
 
 
 def teste_apa_area_publica():
-    """APA menos o CAR total por UF: o que está em imóvel é privado; a UF sem feição é ignorada."""
+    """APA menos o CAR total por UF: o que está em imóvel é privado; a UF sem feição é ignorada.
+
+    ``apa[4]`` cobre também a recuperação SIGEF (decisão 24/09/2026): cai inteira num imóvel do CAR (sairia toda), mas
+    metade dela é um imóvel público segundo o SIGEF e volta a ser pública."""
     import tempfile
     from pathlib import Path
     import geopandas as gpd
@@ -467,21 +470,32 @@ def teste_apa_area_publica():
     d = Path(tempfile.mkdtemp())
     car = gpd.GeoDataFrame({"uf": ["AC", "AM"]}, geometry=[shapely.MultiPolygon([_box(0, 0, 1, 1), _box(5, 5, 6, 6)]), _box(10, 10, 11, 11)], crs=4674)
     car.to_file(d / "car.gpkg", layer="CAR", driver="GPKG")
-    ant = (c.RAIZ, dict(c.FONTES["car_total"]), list(c.UFS))
+    sigef = gpd.GeoDataFrame({"id": [1]}, geometry=[_box(0, 0, 0.5, 0.5)], crs=4674)
+    sigef.to_file(d / "sigef.gpkg", layer="sigefpublico_em_apa", driver="GPKG")
+    ant = (c.RAIZ, dict(c.FONTES["car_total"]), dict(c.FONTES.get("sigef_publico_apa") or {}), list(c.UFS))
     try:
         c.RAIZ = d
         c.FONTES["car_total"] = {"arquivo": "car.gpkg", "camada": "CAR", "campo_uf": "uf"}
+        c.FONTES["sigef_publico_apa"] = {"arquivo": "sigef.gpkg", "camada": "sigefpublico_em_apa"}
         c.UFS[:] = ["AC", "AM", "RO"]
-        apa = np.array([_box(0.5, 0.5, 1.5, 0.9), _box(5.2, 5.2, 5.4, 5.4), _box(20, 20, 20.1, 20.1), _box(10.5, 10.5, 11.5, 10.6)], dtype=object)
+        # apa[4]: inteira no imóvel AC (0,0,1,1) - sairia toda; metade dela (0,0,0.5,0.5) é imóvel público do SIGEF e volta
+        apa = np.array([_box(0.5, 0.5, 1.5, 0.9), _box(5.2, 5.2, 5.4, 5.4), _box(20, 20, 20.1, 20.1), _box(10.5, 10.5, 11.5, 10.6),
+                        _box(0, 0, 1, 0.5)], dtype=object)
         pub, ret = gov.apa_area_publica(apa)
     finally:
         c.RAIZ, c.FONTES["car_total"] = ant[0], ant[1]
-        c.UFS[:] = ant[2]
+        if ant[2]:
+            c.FONTES["sigef_publico_apa"] = ant[2]
+        else:
+            c.FONTES.pop("sigef_publico_apa", None)
+        c.UFS[:] = ant[3]
     a = area_ha(apa)
     assert abs(ret[0] - a[0] / 2) < 1e-3 * a[0] and abs(area_ha([pub[0]])[0] - a[0] / 2) < 1e-3 * a[0]      # metade da APA está no imóvel
     assert pub[1] is None and abs(ret[1] - a[1]) < 1e-6 * a[1]                                                # inteira no imóvel: sai
     assert ret[2] == 0 and pub[2] is not None                                                                 # fora do CAR: pública
     assert abs(ret[3] - a[3] / 2) < 1e-3 * a[3]
+    assert pub[4] is not None and abs(area_ha([pub[4]])[0] - a[4] / 2) < 1e-3 * a[4]                          # SIGEF recupera metade
+    assert abs(ret[4] - a[4] / 2) < 1e-3 * a[4]                                                                # ... e só a outra metade fica privada
 
 
 def teste_sobrepoe_interiores():
