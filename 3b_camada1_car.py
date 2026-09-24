@@ -24,9 +24,17 @@ Saídas:
     T<n>_resumo.csv, T<n>_resumo_uf.csv, T<n>_resumo_uf_bioma.csv, T<n>_conferencias.csv (n = 9, 10, 11)
     T9_acumulado_classes_1_3_4_5_6_7_8_9.csv, T10_..._10.csv, T11_..._11.csv (área líquida acumulada por versão, UF e bioma)
 
-Execução:  python 3b_camada1_car.py [UF ...] [--versao vs22q|vs2224q] [--conferencia auto|leve|completa] [--refazer] [--consolidar]
+Execução:  python 3b_camada1_car.py [UF ...] [--versao vs22q|vs2224q] [--conferencia auto|leve|completa] [--refazer] [--consolidar] [--limpar-por-uf]
     sem UF: as 27 UFs, nas duas versões. Exige as classes 1, 3, 4, 5, 6, 7 e 8 já processadas. Memória: as UFs grandes (PA, MT, GO, MG)
     pedem alguns GB (as peças e as classes 6 a 8 na caixa da UF). Log: Tier9_APP/_log_passo3b_car.txt.
+
+    Os GeoPackages por UF (``_por_uf`` dentro de cada pasta Tier9/10/11) são mantidos por padrão depois de consolidar (desde a v0.7.2).
+    Um `--refazer` parcial (só algumas UFs) dispara uma nova consolidação automática assim que todas as UFs voltam a estar "prontas" -
+    e essa consolidação relê o GeoPackage por UF de TODAS as UFs, não só as reprocessadas. Apagar esses arquivos cedo demais (versões
+    anteriores a 0.7.2, ou rodando com `--limpar-por-uf`) faz uma consolidação parcial subsequente gravar um GeoPackage nacional
+    incompleto (só as UFs cujo arquivo por UF ainda existe) **sem avisar** - as tabelas (`T*_resumo*.csv`, `_conferencias.csv`,
+    `_acumulado*.csv`) não são afetadas, pois vêm de outro diretório (`_por_uf` em `Tier9_APP`, comum às três classes) que nunca é
+    limpo automaticamente. Use `--limpar-por-uf` só depois de conferir que o GeoPackage nacional está correto e completo.
 """
 from __future__ import annotations
 
@@ -120,8 +128,14 @@ def _prontas(versoes, ufs=None):
     return all(_marcador(p, uf).exists() for p in versoes for uf in (ufs or cfg.UFS))
 
 
-def consolidar(versoes, log, manter_por_uf=False, ufs=None):
-    """GeoPackages por classe, resumos, conferências e acumulados (exige todas as UFs das versões; ``ufs`` = subconjunto, para testes)."""
+def consolidar(versoes, log, manter_por_uf=True, ufs=None):
+    """GeoPackages por classe, resumos, conferências e acumulados (exige todas as UFs das versões; ``ufs`` = subconjunto, para testes).
+
+    ``manter_por_uf=True`` (padrão) preserva os GeoPackages por UF em ``_pasta_uf(classe)`` depois de consolidar. Isso é essencial: o
+    marcador de UF concluída (``_marcador``) não é apagado por essa função, então uma nova consolidação automática, depois de um
+    ``--refazer`` parcial (só algumas UFs), volta a exigir o GeoPackage por UF de TODAS as UFs marcadas como prontas - inclusive as
+    que não foram tocadas nesta rodada. Se ``manter_por_uf=False`` já tiver apagado esses arquivos numa consolidação anterior, a
+    próxima consolidação NÃO tem como reconstruir o GeoPackage nacional completo a partir deles; ver o erro abaixo."""
     ufs = ufs or list(cfg.UFS)
     if not _prontas(versoes, ufs):
         faltam = [f"{p}:{uf}" for p in versoes for uf in ufs if not _marcador(p, uf).exists()]
@@ -145,6 +159,13 @@ def consolidar(versoes, log, manter_por_uf=False, ufs=None):
             for uf in ufs:
                 f = _pasta_uf(classe) / f"P1_{classe}_{p}_{uf}.gpkg"
                 if not f.exists():
+                    if _marcador(p, uf).exists():
+                        raise RuntimeError(
+                            f"{classe} {p} {uf}: marcador de UF concluída existe, mas o GeoPackage por UF ({f}) não foi "
+                            f"encontrado - provavelmente apagado por uma consolidação anterior com manter_por_uf=False. "
+                            f"O GeoPackage nacional NÃO pode ser reconstruído sem reprocessar essa UF x versão (rode "
+                            f"'python 3b_camada1_car.py {uf} --refazer --versao={p}' antes de consolidar de novo)."
+                        )
                     continue
                 g = pyogrio.read_dataframe(str(f), layer=f"P1_{classe}_{p}")
                 n_esp += len(g)
@@ -203,7 +224,7 @@ def consolidar(versoes, log, manter_por_uf=False, ufs=None):
 
 def main(argv=None) -> int:
     argv = sys.argv[1:] if argv is None else argv
-    ufs, versoes, conferencia, refazer, so_consolidar, manter = [], list(cfg.VS_VERSOES), "auto", False, False, False
+    ufs, versoes, conferencia, refazer, so_consolidar, limpar = [], list(cfg.VS_VERSOES), "auto", False, False, False
     for a in argv:
         if a.startswith("--versao="):
             versoes = [a.split("=", 1)[1]]
@@ -214,7 +235,9 @@ def main(argv=None) -> int:
         elif a == "--consolidar":
             so_consolidar = True
         elif a == "--manter-por-uf":
-            manter = True
+            pass  # padrão desde 0.7.2; mantido só para não quebrar chamadas antigas
+        elif a == "--limpar-por-uf":
+            limpar = True
         elif a.upper() in cfg.UFS:
             ufs.append(a.upper())
         else:
@@ -250,7 +273,7 @@ def main(argv=None) -> int:
     if so_consolidar and ufs:
         consolidar(todas, log, manter_por_uf=True, ufs=ufs)          # subconjunto de UFs (testes); não apaga os arquivos por UF
     elif _prontas(todas):
-        consolidar(todas, log, manter_por_uf=manter)
+        consolidar(todas, log, manter_por_uf=not limpar)
     else:
         prontas = [f"{p}:{uf}" for p in todas for uf in cfg.UFS if _marcador(p, uf).exists()]
         log(f"UF x versão prontas: {len(prontas)} de {len(todas) * len(cfg.UFS)}; a consolidação roda quando todas estiverem prontas "

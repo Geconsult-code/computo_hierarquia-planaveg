@@ -1,6 +1,6 @@
 # Classes 9, 10 e 11 - VS em APP, AUR e RL dos imóveis do CAR (Camada 1, governança)
 
-Passo 3b (`3b_camada1_car.py`, v0.7.0). A área da classe é a **vegetação secundária qualificada dentro da APP, da AUR ou da RL dos imóveis selecionados
+Passo 3b (`3b_camada1_car.py`, v0.7.2). A área da classe é a **vegetação secundária qualificada dentro da APP, da AUR ou da RL dos imóveis selecionados
 do CAR**, sem dupla contagem com as classes de maior prioridade (1, 3, 4, 5, 6, 7 e 8) e entre elas. Duas versões da VS: `vs22q` (2022 qualificada) e
 `vs2224q` (2022 qualificada; Amazônia e Cerrado pela 2024 qualificada).
 
@@ -50,6 +50,29 @@ roda do mesmo jeito depois, então um resultado desse caminho é conferido como 
 as tentativas com grade e sem grade falhando): a união par a par produziu a área correta. Não foi possível reproduzir a peça exata que travava em
 GO, MG ou PA na nuvem (arquivos grandes demais para o teste); recomendo rodar essas três UFs de novo e conferir no log se "união robusta" aparece
 e se as conferências fecham.
+
+## Achado: um `--refazer` parcial apagava o GeoPackage nacional das outras UFs, sem avisar
+
+A consolidação (`consolidar()`) sempre reconstrói `P1_<classe>_Maio2026.gpkg` a partir dos GeoPackages por UF em `_por_uf` (dentro de
+cada pasta Tier9/10/11), e por padrão apagava esses arquivos por UF ao final, para economizar espaço. O marcador de "UF x versão
+concluída", porém, não é apagado. Resultado: depois da primeira consolidação nacional (as 27 UFs), um `--refazer` de só algumas UFs
+(o conserto de GO, MG e PA para o `GEOSException`, depois RO/SP/TO e BA/MA/MG/MT/PA/RO/SC/SP para a saída inválida do `difference`)
+dispara uma nova consolidação automática assim que as UFs recém-refeitas voltam a "prontas" - e essa consolidação tenta reler o
+GeoPackage por UF de **todas** as 27 UFs, mas a maioria já tinha sido apagada na consolidação anterior. O código pulava
+silenciosamente as UFs sem arquivo, e o `P1_<classe>_Maio2026.gpkg` final ficava só com as UFs da última rodada parcial - visível no
+log da rodada de 23-24/09/2026: cada uma das quatro consolidações produziu uma contagem de partes completamente diferente (ex.: RL
+vs22q foi de 5.558.650 para 54.382, depois 1.739.729, depois 4.422.144 partes - nem de longe um total nacional estável). As tabelas
+(`T9/T10/T11_resumo*.csv`, `_conferencias.csv`, `_acumulado*.csv`, e portanto a planilha de comparação) **não são afetadas**: vêm de
+`Tier9_APP/_por_uf`, um diretório único e comum às três classes que nunca é limpo automaticamente, e sempre agrega as 27 UFs a partir
+dos CSVs por UF, que persistem entre rodadas.
+
+Corrigido na v0.7.2: `consolidar()` passou a manter os GeoPackages por UF por padrão (`manter_por_uf=True`); apagá-los exige o novo
+flag explícito `--limpar-por-uf`. Além disso, se uma UF está marcada como "concluída" mas seu GeoPackage por UF não existe mais, a
+consolidação agora lança um erro explícito em vez de pular a UF em silêncio. **Pendência:** os `P1_APP_CAR_Maio2026.gpkg`,
+`P1_AUR_CAR_Maio2026.gpkg` e `P1_RL_CAR_Maio2026.gpkg` atuais (gravados na consolidação das 09:14 de 24/09/2026) refletem só as UFs
+BA, MA, MG, MT, PA, RO, SC e SP (a última rodada parcial) - não o Brasil inteiro. Reconstruir o GeoPackage nacional completo exige
+reprocessar as 27 UFs (os arquivos por UF das demais já foram apagados) e só então consolidar; ficou pendente, a critério do usuário,
+dado o custo (a rodada de 23-24/09/2026 já levou quase 24h para bem menos UFs).
 
 ## Conferências (por UF, versão, classe e bloco; `T9_conferencias.csv`, `T10_...`, `T11_...`)
 
