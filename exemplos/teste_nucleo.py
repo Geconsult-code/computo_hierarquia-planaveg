@@ -742,6 +742,34 @@ def teste_blocos_habilitados_primeiro():
     assert abs(u.loc["A2", "sobreposta_app_an_ha"] - b) < 1e-3 * b
 
 
+def teste_uf_vazia_na_classe():
+    """consolidar() não pode travar quando uma UF concluída legitimamente não teve nenhuma peça numa classe (ex.: AUR em
+    UFs pequenas): _uf_vazia_na_classe() distingue isso de um GeoPackage por UF realmente perdido, usando o resumo por UF
+    (que processar_uf sempre grava, com ou sem peças)."""
+    import importlib
+    import tempfile
+    from pathlib import Path
+    import pandas as pd
+    m = importlib.import_module("3b_camada1_car")
+    d = Path(tempfile.mkdtemp())
+    fixo = m.POR_UF
+    m.POR_UF = d
+    try:
+        # UF com peças de APP mas nenhuma de AUR (não aparece no resumo)
+        pd.DataFrame({"classe": ["APP", "RL"], "categoria": ["Habilitados", "Habilitados"], "n_pecas": [10, 5]}) \
+            .to_csv(d / "resumo_vs22q_AC.csv", index=False)
+        assert m._uf_vazia_na_classe("AUR", "vs22q", "AC") is True
+        assert m._uf_vazia_na_classe("APP", "vs22q", "AC") is False
+        # UF com a classe presente no resumo mas com n_pecas somando zero (idem: legitimamente vazia)
+        pd.DataFrame({"classe": ["AUR", "AUR"], "categoria": ["Habilitados", "Analisados"], "n_pecas": [0, 0]}) \
+            .to_csv(d / "resumo_vs22q_BA.csv", index=False)
+        assert m._uf_vazia_na_classe("AUR", "vs22q", "BA") is True
+        # sem resumo algum (não deveria acontecer com o marcador presente): assume que não é vazia, erro original prevalece
+        assert m._uf_vazia_na_classe("AUR", "vs22q", "SP") is False
+    finally:
+        m.POR_UF = fixo
+
+
 if __name__ == "__main__":
     testes = [v for k, v in sorted(globals().items()) if k.startswith("teste_")]
     for t in testes:

@@ -1,6 +1,6 @@
 # Classes 9, 10 e 11 - VS em APP, AUR e RL dos imóveis do CAR (Camada 1, governança)
 
-Passo 3b (`3b_camada1_car.py`, v0.7.2). A área da classe é a **vegetação secundária qualificada dentro da APP, da AUR ou da RL dos imóveis selecionados
+Passo 3b (`3b_camada1_car.py`, v0.7.4). A área da classe é a **vegetação secundária qualificada dentro da APP, da AUR ou da RL dos imóveis selecionados
 do CAR**, sem dupla contagem com as classes de maior prioridade (1, 3, 4, 5, 6, 7 e 8) e entre elas. Duas versões da VS: `vs22q` (2022 qualificada) e
 `vs2224q` (2022 qualificada; Amazônia e Cerrado pela 2024 qualificada).
 
@@ -73,6 +73,22 @@ consolidação agora lança um erro explícito em vez de pular a UF em silêncio
 BA, MA, MG, MT, PA, RO, SC e SP (a última rodada parcial) - não o Brasil inteiro. Reconstruir o GeoPackage nacional completo exige
 reprocessar as 27 UFs (os arquivos por UF das demais já foram apagados) e só então consolidar; ficou pendente, a critério do usuário,
 dado o custo (a rodada de 23-24/09/2026 já levou quase 24h para bem menos UFs).
+
+## Achado: uma UF sem nenhuma peça de AUR (ou RL) travava a consolidação inteira
+
+`processar_uf` só grava o GeoPackage por UF de uma classe (`P1_<classe>_<versão>_<uf>.gpkg`) quando há pelo menos uma peça líquida (`if len(r["partes"])`); UFs
+pequenas podem legitimamente não ter nenhuma peça de AUR (ex.: AC e BA, na v0.7.4 - a AUR é uma classe rara, ~10 mil peças no Brasil todo). Isso é normal e não
+indica erro. Só que a checagem de integridade adicionada na v0.7.2 (acima) não distinguia essa UF "vazia" de uma UF cujo GeoPackage tinha sido apagado por engano:
+bastava o marcador de "UF concluída" existir e o arquivo faltar para lançar `RuntimeError`, mesmo quando a ausência era esperada. Na rodada nacional de
+25-26/09/2026 (`--refazer`, ~24h), isso derrubou a consolidação logo depois da APP: a AUR chegou em AC (a primeira UF alfabética sem peças) e o script
+encerrou com uma exceção não tratada no `main()` (sem log, porque o `for classe in car.CLASSES:` de `consolidar()` não tem `try/except` - só apareceu no
+terminal). AUR e RL ficaram com os GeoPackages nacionais desatualizados (da rodada anterior), embora o processamento por UF das duas classes tivesse
+terminado certinho (todos os marcadores e GeoPackages por UF presentes).
+
+Corrigido na v0.7.4: `_uf_vazia_na_classe()` confere o resumo por UF (`_por_uf/resumo_<versão>_<uf>.csv`, que `processar_uf` sempre grava, com ou sem peças)
+para saber se a classe realmente não teve nenhuma peça nessa UF; só nesse caso a ausência do GeoPackage por UF é aceita. Se o resumo apontar peças e o
+arquivo mesmo assim não existir, o erro original continua valendo (arquivo perdido de verdade). **Pendência:** rodar `python 3b_camada1_car.py --consolidar`
+para terminar a consolidação de AUR e RL (o processamento por UF já está completo; só falta a consolidação, que é rápida).
 
 ## Conferências (por UF, versão, classe e bloco; `T9_conferencias.csv`, `T10_...`, `T11_...`)
 

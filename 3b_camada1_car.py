@@ -128,6 +128,19 @@ def _prontas(versoes, ufs=None):
     return all(_marcador(p, uf).exists() for p in versoes for uf in (ufs or cfg.UFS))
 
 
+def _uf_vazia_na_classe(classe, versao, uf):
+    """True se a UF x versão legitimamente não teve nenhuma peça na classe (por isso ``processar_uf`` não gravou o
+    GeoPackage por UF: ``if len(r["partes"])`` - ver lá). Distingue isso de um arquivo perdido, consultando o resumo
+    por UF (gravado por ``processar_uf`` independente de haver peças ou não). Sem o resumo (não deveria acontecer com o
+    marcador presente), assume que NÃO é vazia, para manter o erro original como fallback seguro."""
+    f = POR_UF / f"resumo_{versao}_{uf}.csv"
+    if not f.exists():
+        return False
+    r = pd.read_csv(f)
+    linhas = r.loc[r["classe"] == classe, "n_pecas"] if "classe" in r.columns else pd.Series(dtype=float)
+    return bool(linhas.empty or linhas.sum() == 0)
+
+
 def consolidar(versoes, log, manter_por_uf=True, ufs=None):
     """GeoPackages por classe, resumos, conferências e acumulados (exige todas as UFs das versões; ``ufs`` = subconjunto, para testes).
 
@@ -159,7 +172,7 @@ def consolidar(versoes, log, manter_por_uf=True, ufs=None):
             for uf in ufs:
                 f = _pasta_uf(classe) / f"P1_{classe}_{p}_{uf}.gpkg"
                 if not f.exists():
-                    if _marcador(p, uf).exists():
+                    if _marcador(p, uf).exists() and not _uf_vazia_na_classe(classe, p, uf):
                         raise RuntimeError(
                             f"{classe} {p} {uf}: marcador de UF concluída existe, mas o GeoPackage por UF ({f}) não foi "
                             f"encontrado - provavelmente apagado por uma consolidação anterior com manter_por_uf=False. "
