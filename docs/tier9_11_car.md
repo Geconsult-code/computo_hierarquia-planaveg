@@ -87,8 +87,12 @@ terminado certinho (todos os marcadores e GeoPackages por UF presentes).
 
 Corrigido na v0.7.4: `_uf_vazia_na_classe()` confere o resumo por UF (`_por_uf/resumo_<versão>_<uf>.csv`, que `processar_uf` sempre grava, com ou sem peças)
 para saber se a classe realmente não teve nenhuma peça nessa UF; só nesse caso a ausência do GeoPackage por UF é aceita. Se o resumo apontar peças e o
-arquivo mesmo assim não existir, o erro original continua valendo (arquivo perdido de verdade). **Pendência:** rodar `python 3b_camada1_car.py --consolidar`
-para terminar a consolidação de AUR e RL (o processamento por UF já está completo; só falta a consolidação, que é rápida).
+arquivo mesmo assim não existir, o erro original continua valendo (arquivo perdido de verdade). Rodada `--consolidar` de 26/09/2026 (7min): terminou sem
+erro para as três classes. AUR: 0 conferências fora do limite (de 780). APP: as mesmas 3 de sempre (SP e RO, diferença residual pequena na conferência por
+união independente, sem mudança). RL: 24 conferências fora do limite (de 1.040) - a maioria é o mesmo padrão residual pequeno de BA/MA/SC/SP/RO/MT (< 2 ha);
+em MT, PA e MG (vs22q e vs2224q), a conferência por união independente também acusou diferenças maiores (-1,4 a -29 ha) nos mesmos imóveis com muitas peças
+sobrepostas em que já ocorre "união robusta" (ver achado acima) - desprezível frente ao total nacional de RL (~4,3-4,5 milhões de ha, desvio relativo ~1e-6),
+mas maior em valor absoluto do que o padrão já visto na APP.
 
 ## Conferências (por UF, versão, classe e bloco; `T9_conferencias.csv`, `T10_...`, `T11_...`)
 
