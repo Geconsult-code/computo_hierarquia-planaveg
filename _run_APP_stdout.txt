@@ -1,0 +1,9 @@
+08:26:42 === gerar_geopackages_finais: APP ===
+09:06:29 APP Habilitados vs22q: 42 peças, 338,258.4 ha -> Planaveg_2026_Imoveis_APP.gpkg [APP_Habilitados_vs22q]
+09:09:05 APP Analisados vs22q: 43 peças, 141,231.4 ha -> Planaveg_2026_Imoveis_APP.gpkg [APP_Analisados_vs22q]
+09:27:59 APP Nao_Analisados vs22q: 49 peças, 741,647.7 ha -> Planaveg_2026_Imoveis_APP.gpkg [APP_Nao_Analisados_vs22q]
+10:09:08 APP Habilitados vs2224q: 42 peças, 350,522.3 ha -> Planaveg_2026_Imoveis_APP.gpkg [APP_Habilitados_vs2224q]
+10:12:19 APP Analisados vs2224q: 43 peças, 142,857.5 ha -> Planaveg_2026_Imoveis_APP.gpkg [APP_Analisados_vs2224q]
+10:31:34 APP Nao_Analisados vs2224q: 49 peças, 748,198.1 ha -> Planaveg_2026_Imoveis_APP.gpkg [APP_Nao_Analisados_vs2224q]
+10:32:05 APP: concluído em 7522s
+10:32:05 fim

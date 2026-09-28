@@ -1,0 +1,9 @@
+10:33:08 === gerar_geopackages_finais: RL ===
+11:41:36 RL Habilitados vs22q: 45 peças, 1,164,049.7 ha -> Planaveg_2026_Imoveis_RL.gpkg [RL_Habilitados_vs22q]
+11:45:59 RL Analisados vs22q: 44 peças, 639,230.1 ha -> Planaveg_2026_Imoveis_RL.gpkg [RL_Analisados_vs22q]
+12:14:01 RL Nao_Analisados vs22q: 50 peças, 2,527,914.8 ha -> Planaveg_2026_Imoveis_RL.gpkg [RL_Nao_Analisados_vs22q]
+13:25:32 RL Habilitados vs2224q: 45 peças, 1,203,693.0 ha -> Planaveg_2026_Imoveis_RL.gpkg [RL_Habilitados_vs2224q]
+13:31:22 RL Analisados vs2224q: 44 peças, 658,855.4 ha -> Planaveg_2026_Imoveis_RL.gpkg [RL_Analisados_vs2224q]
+14:07:03 RL Nao_Analisados vs2224q: 50 peças, 2,626,900.7 ha -> Planaveg_2026_Imoveis_RL.gpkg [RL_Nao_Analisados_vs2224q]
+14:07:38 RL: concluído em 12870s
+14:07:38 fim

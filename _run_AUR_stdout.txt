@@ -1,0 +1,9 @@
+07:58:46 === gerar_geopackages_finais: AUR ===
+07:59:01 AUR Habilitados vs22q: 21 peças, 16,372.5 ha -> Planaveg_2026_Imoveis_AUR.gpkg [AUR_Habilitados_vs22q]
+07:59:03 AUR Analisados vs22q: 25 peças, 5,661.5 ha -> Planaveg_2026_Imoveis_AUR.gpkg [AUR_Analisados_vs22q]
+07:59:12 AUR Nao_Analisados vs22q: 37 peças, 35,058.6 ha -> Planaveg_2026_Imoveis_AUR.gpkg [AUR_Nao_Analisados_vs22q]
+07:59:29 AUR Habilitados vs2224q: 21 peças, 17,502.2 ha -> Planaveg_2026_Imoveis_AUR.gpkg [AUR_Habilitados_vs2224q]
+07:59:32 AUR Analisados vs2224q: 25 peças, 6,129.5 ha -> Planaveg_2026_Imoveis_AUR.gpkg [AUR_Analisados_vs2224q]
+07:59:40 AUR Nao_Analisados vs2224q: 37 peças, 36,321.7 ha -> Planaveg_2026_Imoveis_AUR.gpkg [AUR_Nao_Analisados_vs2224q]
+07:59:40 AUR: concluído em 54s
+07:59:40 fim

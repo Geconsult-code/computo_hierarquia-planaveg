@@ -131,13 +131,16 @@ def _prontas(versoes, ufs=None):
 def _uf_vazia_na_classe(classe, versao, uf):
     """True se a UF x versão legitimamente não teve nenhuma peça na classe (por isso ``processar_uf`` não gravou o
     GeoPackage por UF: ``if len(r["partes"])`` - ver lá). Distingue isso de um arquivo perdido, consultando o resumo
-    por UF (gravado por ``processar_uf`` independente de haver peças ou não). Sem o resumo (não deveria acontecer com o
-    marcador presente), assume que NÃO é vazia, para manter o erro original como fallback seguro."""
+    por UF (gravado por ``processar_uf`` independente de haver peças ou não). Sem o resumo, ou com o resumo em formato
+    inesperado (sem a coluna ``classe`` - não deveria acontecer com o marcador presente), assume que NÃO é vazia, para
+    manter o erro original como fallback seguro em vez de mascarar um resumo corrompido."""
     f = POR_UF / f"resumo_{versao}_{uf}.csv"
     if not f.exists():
         return False
     r = pd.read_csv(f)
-    linhas = r.loc[r["classe"] == classe, "n_pecas"] if "classe" in r.columns else pd.Series(dtype=float)
+    if "classe" not in r.columns:
+        return False
+    linhas = r.loc[r["classe"] == classe, "n_pecas"]
     return bool(linhas.empty or linhas.sum() == 0)
 
 

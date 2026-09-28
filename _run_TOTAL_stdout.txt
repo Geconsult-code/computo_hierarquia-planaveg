@@ -1,0 +1,4 @@
+14:16:00 === gerar_geopackages_finais: --so-total (montagem a partir dos arquivos já gerados) ===
+14:18:20 TOTAL (de arquivos) vs22q: 605 peças, 8,588,727.1 ha -> Planaveg_2026_Total.gpkg [Reporte_Planaveg_Total_vs22q]
+14:34:17 TOTAL (de arquivos) vs2224q: 605 peças, 8,803,150.8 ha -> Planaveg_2026_Total.gpkg [Reporte_Planaveg_Total_vs2224q]
+14:38:56 fim

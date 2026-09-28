@@ -1,0 +1,5 @@
+07:50:50 === gerar_geopackages_finais: UC ===
+07:54:24 UC vs22q: 48 peças, 1,337,570.3 ha -> Planaveg_2026_Unidade_Conservacao.gpkg [UC_vs22q]
+07:58:06 UC vs2224q: 48 peças, 1,340,832.8 ha -> Planaveg_2026_Unidade_Conservacao.gpkg [UC_vs2224q]
+07:58:06 UC: concluído em 436s
+07:58:06 fim

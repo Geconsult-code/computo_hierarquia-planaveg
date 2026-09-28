@@ -766,6 +766,9 @@ def teste_uf_vazia_na_classe():
         assert m._uf_vazia_na_classe("AUR", "vs22q", "BA") is True
         # sem resumo algum (não deveria acontecer com o marcador presente): assume que não é vazia, erro original prevalece
         assert m._uf_vazia_na_classe("AUR", "vs22q", "SP") is False
+        # resumo em formato inesperado (sem a coluna "classe", ex.: corrompido): não mascara - assume que não é vazia
+        pd.DataFrame({"categoria": ["Habilitados"], "n_pecas": [10]}).to_csv(d / "resumo_vs22q_RO.csv", index=False)
+        assert m._uf_vazia_na_classe("AUR", "vs22q", "RO") is False
     finally:
         m.POR_UF = fixo
 

@@ -1,0 +1,33 @@
+08:02:56 === gerar_geopackages_finais: SICAR_REGULARIZACAO ===
+08:02:57   células UF x bioma: RS (2 até agora)
+08:02:58   células UF x bioma: SP (4 até agora)
+08:02:58   células UF x bioma: ES (5 até agora)
+08:02:59   células UF x bioma: RJ (6 até agora)
+08:02:59   células UF x bioma: PR (8 até agora)
+08:03:00   células UF x bioma: SC (9 até agora)
+08:03:00   células UF x bioma: MG (12 até agora)
+08:03:00   células UF x bioma: CE (13 até agora)
+08:03:01   células UF x bioma: GO (15 até agora)
+08:03:01   células UF x bioma: RN (17 até agora)
+08:03:01   células UF x bioma: MA (19 até agora)
+08:03:01   células UF x bioma: DF (20 até agora)
+08:03:01   células UF x bioma: PI (22 até agora)
+08:03:01   células UF x bioma: MS (25 até agora)
+08:03:02   células UF x bioma: MT (28 até agora)
+08:03:02   células UF x bioma: AL (30 até agora)
+08:03:02   células UF x bioma: AC (31 até agora)
+08:03:02   células UF x bioma: SE (33 até agora)
+08:03:03   células UF x bioma: AM (34 até agora)
+08:03:03   células UF x bioma: PB (36 até agora)
+08:03:03   células UF x bioma: PE (38 até agora)
+08:03:03   células UF x bioma: RO (40 até agora)
+08:03:03   células UF x bioma: AP (41 até agora)
+08:03:03   células UF x bioma: TO (43 até agora)
+08:03:04   células UF x bioma: BA (46 até agora)
+08:03:04   células UF x bioma: RR (47 até agora)
+08:03:05   células UF x bioma: PA (49 até agora)
+08:03:39 SICAR_REGULARIZACAO : 2,470 polígonos -> 2,593 fragmentos UF x bioma (34s)
+08:03:55 SICAR_REGULARIZACAO vs22q: 10 peças, 33,519.5 ha -> Planaveg_2026_SICAR_Regularizacao.gpkg [SICAR_REGULARIZACAO_vs22q]
+08:03:55 SICAR_REGULARIZACAO vs2224q: 10 peças, 33,519.5 ha -> Planaveg_2026_SICAR_Regularizacao.gpkg [SICAR_REGULARIZACAO_vs2224q]
+08:03:55 SICAR_REGULARIZACAO: concluído em 51s
+08:03:55 fim

@@ -1,0 +1,5 @@
+07:46:44 === gerar_geopackages_finais: TI ===
+07:48:22 TI vs22q: 38 peças, 940,580.4 ha -> Planaveg_2026_Terras_Indigenas.gpkg [TI_vs22q]
+07:50:05 TI vs2224q: 38 peças, 978,302.1 ha -> Planaveg_2026_Terras_Indigenas.gpkg [TI_vs2224q]
+07:50:05 TI: concluído em 201s
+07:50:05 fim
