@@ -25,7 +25,7 @@ IGNORAR_PASTAS = ("Vegetacao_Secundaria",)  # VS é pesada e não é fonte de fl
 SAIDA = Path(__file__).with_name("inventario_fontes_visualizacao.txt")
 
 MAX_VALORES = 40
-MAX_FEICOES_DISTINCT = 10_000_000  # acima disso não faz SELECT DISTINCT
+MAX_FEICOES_DISTINCT = 500_000  # acima disso não faz SELECT DISTINCT
 CAMPOS_ALVO = ("esfera", "categ", "grupo", "nivel", "nm_", "nome", "hierarq",
                "tier", "classe", "status", "fase", "tipo", "uf", "sigla",
                "bacia", "regiao", "modulo", "etapa", "fonte", "origem", "camada",
@@ -45,12 +45,15 @@ def main():
     linhas = []
     arquivos = sorted(
         p for r in RAIZES if r.exists() for p in r.rglob("*.gpkg")
-        if not any(ig in p.parts for ig in IGNORAR_PASTAS)
+        if not any(ig.lower() in parte.lower()
+                   for parte in p.parts[:-1] for ig in IGNORAR_PASTAS)
     )
     for r in RAIZES:
         if not r.exists():
             linhas.append(f"!! pasta não encontrada: {r}")
-    for arq in arquivos:
+    print(f"{len(arquivos)} arquivos a inventariar", flush=True)
+    for i, arq in enumerate(arquivos, 1):
+        print(f"[{i}/{len(arquivos)}] {arq.name}", flush=True)
         linhas.append(f"\n##### {arq}  ({arq.stat().st_size/1e6:,.1f} MB)")
         try:
             camadas = pyogrio.list_layers(arq)
