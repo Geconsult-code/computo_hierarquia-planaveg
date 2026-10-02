@@ -16,3 +16,6 @@ _logs/
 _progresso/
 _done_*.txt
 heartbeat_*.txt
+
+# Saídas de terminal de rodadas locais
+_run_*_stdout.txt
