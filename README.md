@@ -87,6 +87,32 @@ do MG a 21 h em outro projeto); um GeoPackage por UF nas classes grandes (limite
 retomada automática com marcadores; execução por UF (`SOMENTE_ESTES`, `PULAR`, `REFAZER`); área
 geodésica GRS80 em EPSG:4674.
 
+## Dados: restaurar o backup
+
+Os dados de entrada e os intermediários que este repositório lê estão no backup do projeto
+(`F:\BKP_PLANAVEG`, organizado e documentado no repositório
+[`backup_planaveg_2026`](https://github.com/Geconsult-code/backup_planaveg_2026)). Para rodar
+os scripts em outro computador ou em outra pasta, restaure só o que este repositório usa
+(cerca de 136 GB descompactados) e aponte os scripts para a pasta restaurada:
+
+```powershell
+git clone https://github.com/Geconsult-code/backup_planaveg_2026
+cd backup_planaveg_2026
+# simulação: mostra o volume por pasta e o espaço necessário
+python restaurar_backup.py --backup F:\BKP_PLANAVEG --destino D:\PLANAVEG_DADOS --repo computo
+# restauração (pode ser interrompida e retomada)
+python restaurar_backup.py --backup F:\BKP_PLANAVEG --destino D:\PLANAVEG_DADOS --repo computo --executar
+# uma vez só; abra um terminal novo depois
+setx PLANAVEG_RAIZ "D:\PLANAVEG_DADOS"
+```
+
+O `config_computo.py` lê `PLANAVEG_RAIZ`; nenhum script precisa ser editado. Não defina
+`PLANAVEG_SAIDA` de forma permanente (ver o README do `backup_planaveg_2026`).
+
+Sem a variável, os scripts usam a pasta original no Dropbox (`GEODATABASE\GEOPACKAGE`), que hoje
+guarda só uma cópia reduzida dos dados. Detalhes, opções e o inventário completo do backup
+(`_manifesto_backup.csv`) estão no README do `backup_planaveg_2026`.
+
 ## Instalação
 
 Recomendado conda-forge (no Windows, `pip` costuma quebrar GDAL/fiona):
