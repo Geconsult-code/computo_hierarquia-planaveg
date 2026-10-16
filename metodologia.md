@@ -59,6 +59,8 @@ Recuperação da Vegetação Nativa.
   adotado em 24/09/2026 no lugar do ORR 2025 (4 polígonos dissolvidos por bioma). Entra pela **área total dos polígonos**,
   com ou sem VS (decisão de 21/09/2026), sem filtro de status; a VS fica como atributo. Ver `docs/tier5_or.md`.
 - **Outros projetos:** MMA e demais órgãos, com polígono, extensão e ano de implantação (Anexo 3).
+  *No cômputo 2026:* embargos PANGIA (só a VS dentro do embargo) e projetos do ICMBio (GEF Terrestre e
+  Restauração Ecológica), pela área total dos polígonos. Ver `docs/tier4_outros_projetos.md`.
 
 Os projetos entram no cômputo mesmo sem VS detectável.
 
@@ -95,6 +97,10 @@ O cruzamento da VS com APP/RL/AUR dos imóveis selecionados vem do repositório
 - Embargos PANGIA (20/09/2026): mantidos só os 50.674 polígonos reais; removidos 13.810 registros sem
   geometria e 26.843 pontos (microcírculos), com extensão corrigida. Entram na classe 4 (Outros projetos) só pela
   interseção com a VS qualificada (`docs/tier4_outros_projetos.md`).
+- ICMBio (decisões de 14/10/2026): entram na classe 4 pela área total, sem cruzamento com a VS, o GEF Terrestre (7 camadas) e a
+  camada Restauração Ecológica. Em cada grupo de polígonos sobrepostos fica o maior (nas cópias, o da camada `_ORR`); entre os dois
+  arquivos fica o GEF. Incluído de forma incremental (`incluir_icmbio_classe4.py`): a parte ainda livre das classes 1, 3 e 4 entra na
+  classe 4 e sai das classes 5 a 11, o mesmo resultado de recalcular tudo.
 - Classes de governança (6 TI, 7 UC, 8 Manguezal; `docs/tier6_8_governanca_publica.md`): a área da classe é a VS qualificada dentro do território, por versão da VS.
   TI: fases delimitada, declarada, homologada e regularizada. UC: só o limite da UC (a zona de amortecimento não é UC); nas APAs entra só a área pública
   (APA menos os imóveis do CAR). Manguezal: toda a VS do ProManguezal.
@@ -114,15 +120,15 @@ bioma (classes de projeto são antes fragmentadas nas células UF x bioma) e gra
 CAR separadas em Habilitados, Analisados e Não analisados (decisões de 28/09/2026). São geradas as duas
 versões da VS (2022 qualificada e 2022-2024 qualificada).
 
-Totais (área geodésica): **8.588.727,1 ha** com a VS 2022 qualificada e **8.803.150,8 ha** com a VS
-2022-2024 qualificada. A diferença vem das classes de VS (6 a 11) e da classe 4 (PANGIA x VS); as
-classes 1, 3 e 5 não dependem da VS e são praticamente iguais nas duas versões.
+Totais (campo `computo`, área geodésica líquida de cada classe): **8.596.928,3 ha** com a VS 2022 qualificada e
+**8.811.361,7 ha** com a VS 2022-2024 qualificada, já com o ICMBio na classe 4 (v0.9.0; antes, 8.588.727,1 e
+8.803.150,8 ha). A diferença entre as versões vem das classes de VS (6 a 11) e da parte PANGIA da classe 4
+(PANGIA x VS); as classes 1, 3 e 5 e o ICMBio não dependem da VS e são praticamente iguais nas duas versões.
 
 ## 11. Pendências do cômputo 2026
 
 - **Florestas Públicas Não Destinadas (CNFP):** fonte do dado não definida; no reporte, `area_wit_fpnd = 0`
   e `computo = area_tnc`.
-- **ICMBio:** projetos ainda fora da classe 4.
 - **Arranjos de implementação (seção 7):** passos 5 e 6 ainda não implementados.
 - Demais itens em `PENDENCIAS`, no `config_computo.py`.
 
@@ -132,5 +138,6 @@ O Total do reporte é a entrada do repositório
 [visualizacao_categoria-fundiaria](https://github.com/Geconsult-code/visualizacao_categoria-fundiaria),
 que fragmenta o cômputo por município e bacia e acrescenta atributos de filtro (categorias de CAR,
 APP/RL/AUR por categoria, componentes de projeto, UC/APA/RPPN e esferas, TI, assentamentos e
-quilombolas). Essa etapa conservou a área de cada classe com diferença máxima de 0,001 ha e confirmou,
-de forma independente, a coerência entre cada classe e a sua fonte (≥ 99,96% da área com a flag própria).
+quilombolas). Na versão de 16/10/2026 (com o ICMBio) a área de cada classe foi conservada com diferença
+máxima de 0,002 ha, todas as classes têm 100% da área com a flag própria e a matriz de preenchimento dos
+atributos não tem nenhuma violação.

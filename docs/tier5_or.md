@@ -37,7 +37,7 @@ customizado: `+proj=aea +lat_0=-12 +lon_0=-54 +lat_1=-2 +lat_2=-22 +x_0=0 +y_0=0
 | Versão do arquivo | ORR 2026 (nível de projeto); se sair versão nova, trocar `FONTES['or']` em `config_computo.py` | Adotado (24/09/2026) |
 | Filtro de status | nenhum: todos os polígonos entram, qualquer que seja `ProjAtivo` | Decidido (24/09/2026) |
 | Precedência entre projetos sobrepostos | menor `fid_orig` (não há outro critério nos dados de origem) | Adotado (24/09/2026), consistente com o critério de desempate já usado em outras classes com múltiplos polígonos |
-| ICMBio | as camadas do ICMBio GEF com "ORR" no nome podem se sobrepor a este arquivo quando o ICMBio voltar; a hierarquia resolve (o OR conta uma vez) | Registro |
+| ICMBio | incluído na classe 4 em 14/10/2026 (área total); como a classe 4 precede a 5, a área comum sai do OR: -28.196,1 ha (vs22q) e -28.202,3 ha (vs2224q), 860 polígonos líquidos apagados e cerca de 1.630 recortados. Classe 5 final: 159.072,6 e 159.084,5 ha (ver `docs/tier4_outros_projetos.md`) | Aplicado (14/10/2026) |
 
 ## Hierarquia
 

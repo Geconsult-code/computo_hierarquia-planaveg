@@ -10,8 +10,8 @@ campos vêm da leitura direta dos arquivos.
 | `IBAMA_Projetos_Recooperar_2026_com_area.gpkg` (EPSG:4674); com a VS incorporada: `Projetos_com_VegSec\IBAMA_Projetos_Recooperar_2026_com_VegSec.gpkg` (entrada do Tier-1) | Licenciamento (76); Reparação por danos (1.181); Embargo (357); Outras áreas (76) | `status_are`: Em recuperação, Recuperada, Pendente de recuperação, ATUALIZAR (6 no licenciamento). Campo `area_ha` |
 | `IBAMA_Projetos_Recooperar_2025_com_area.gpkg` (EPSG:4326) | Licenciamento (67); Reparação (2.553); Embargo (1.726); Outras (136) | Muitos `ATUALIZAR` e "Competência de outros órgãos". Versão anterior; relação com a 2026 a definir |
 | `CAR_Junho26_Regularizacao_Ambiental.gpkg` (EPSG:4674; só AC, MT, PB, RJ e SP; entrada da classe 3) | Limite do imóvel (2.398); APPs (44.631); RL (2.477); AUR (183); Vegetação nativa (2.323); **Área a recompor APP (1.242); Área a recompor RL (1.238)** | Camadas nomeadas "Julho26" dentro de arquivo "Junho26". Chave `cod_imovel`. Fonte da classe SICAR-regularização |
-| `ICMBio_Projetos_Restauracao_2026_com_area.gpkg` | Restauracao_Ecologica (3.609); Areas_Degradadas (3.855); Embargos_maior5ha (3.685) | CRS não definido no arquivo. Definir quais camadas são projetos |
-| `ICMBio_Projetos_GEF_Terrestre_2026_com_area.gpkg` | 7 camadas (Pantanal, Pampa, Caatinga; 4 a 326 feições) | CRS heterogêneos (sem CRS, 32722, 31981, 31984), geometrias 3D |
+| `ICMBio_Projetos_Restauracao_2026_com_area.gpkg` | Restauracao_Ecologica (3.609); Areas_Degradadas (3.855); Embargos_maior5ha (3.685) | CRS não definido no arquivo. Só `Restauracao_Ecologica` entra na classe 4 (decisão de 14/10/2026) |
+| `ICMBio_Projetos_GEF_Terrestre_2026_com_area.gpkg` | 7 camadas (Pantanal, Pampa, Caatinga; 4 a 326 feições) | CRS heterogêneos (sem CRS, 32722, 31981, 31984), geometrias 3D. As 7 camadas entram na classe 4 (decisão de 14/10/2026) |
 | `ORR_Observatorio_Restauracao_2025_com_area.gpkg` | 1 camada, 4 feições (uma por bioma: Amazônia, Caatinga, Cerrado, Mata Atlântica; 48,7 mil ha) | Campo `hierarquia` = ORR. Já dissolvido; sem Pampa e Pantanal. CRS Albers customizado (WKT "Albers"; no QGIS/GDAL usar `+proj=aea +lat_0=-12 +lon_0=-54 +lat_1=-2 +lat_2=-22 +x_0=0 +y_0=0 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs`), geometrias Z/M e 38.473 partes. Entrada da classe 5 (área total, com ou sem VS) |
 | `IBAMA_Areas_Embargadas_PANGIA20260920_Poligonos.gpkg` (EPSG:4674) | 1 camada, 50.674 polígonos (5,88 Mha somados; 5,16 Mha sem sobreposição interna) | Versão limpa de `..._PANGIA20260920.gpkg` (91.327 registros). Chave `num_tad` + `serie_tad` (`seq_tad` = 0 em 1.563 registros). Sem campo de status de recuperação. Entrada da classe 4 (só a VS dentro do embargo). Colunas com nome/CPF/CNPJ do embargado e textos livres (`nome_embar`, `cpf_cnpj_e`, `nome_imove`, `des_locali`, `des_tad`, `des_infrac`) **não** seguem para o cômputo (LGPD) |
 
@@ -103,6 +103,16 @@ Colunas próprias da tabela de polígonos: `id_proj` (`EMB-<fid>`), `num_tad`, `
 (passo 1), `<p>_area_vs_embargo_ha`, `<p>_sobreposta_recooperar_ha`, `<p>_sobreposta_sicar_regularizacao_ha`,
 `<p>_sobreposta_classes_anteriores_ha`, `<p>_n_precedentes_sobrepostos`, `<p>_sobreposta_na_classe_ha`, `<p>_area_liquida_ha`,
 `<p>_uf_principal`, `<p>_ufs`, `<p>_bioma_principal`, `<p>_biomas`, `<p>_uf_diverge_fonte`, `<p>_area_fora_ibge_ha`.
+
+### ICMBio na classe 4 (desde 14/10/2026)
+
+| Arquivo | Conteúdo |
+|---|---|
+| `Insumos\IN_ICMBio_2026.gpkg` (`IN_ICMBIO`) | 3.655 polígonos sem sobreposição interna, área total (38.019,1 ha): 602 do GEF Terrestre (4.588,5 ha) e 3.053 da Restauração Ecológica (33.430,6 ha, já recortada pelo GEF). Campos `fonte` (`ICMBio_GEF_Terrestre_2026` / `ICMBio_Restauracao_2026`), `camada_orig`, `fid_orig`, `projeto`, `instituicao`, `uc`, `data_inicio`, `data_conclusao`, `recortado_por_gef`, `area_orig_ha` |
+| `Tier4_Outros_Projetos\P2_Outros_Projetos_PANGIA_20260920.gpkg` | `P2_OUTROS_PROJETOS_vs22q` / `_vs2224q` passam a ter também as peças `ICMBIO-nnnnn` (Δ, a parte do ICMBio fora das classes 1, 3 e 4); nova camada `P2_OUTROS_PROJETOS_ICMBIO_poligonos` (polígonos inteiros com a área líquida por versão) |
+| `Tier4_Outros_Projetos\ICMBio_incremental_resumo.csv` / `_alteracoes.csv` | Por versão x camada: feições alteradas e apagadas, área antes, removida e depois, interseção medida e residual; uma linha por feição alterada |
+| `Tier4_Outros_Projetos\ICMBio_incremental_delta.gpkg` | Δ por versão (`delta_vs22q`, `delta_vs2224q`): o que entrou na classe 4 e saiu das classes 5 a 11 |
+| `Tier4_Outros_Projetos\ICMBio_incremental_estado.json`, `_log_icmbio_incremental.txt` | Etapas concluídas (retomada) e log |
 
 ## Saídas da classe 5 (OR: Observatório da Restauração)
 

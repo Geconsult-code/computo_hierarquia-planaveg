@@ -2,6 +2,21 @@
 
 Histórico reconstituído a partir do README e dos registros de trabalho. Datas de 2026.
 
+## [0.9.0] - 16/10
+### Adicionado
+- Projetos do ICMBio na classe 4 (Outros projetos), pela área total dos polígonos, sem cruzamento com a VS
+  (decisões de 14/10/2026): GEF Terrestre (7 camadas) e Restauração Ecológica (só essa camada do arquivo de
+  Restauração); em cada grupo de polígonos sobrepostos fica o maior (nas cópias, o da camada `_ORR`); entre os
+  dois arquivos fica o GEF. Insumo consolidado: `Insumos/IN_ICMBio_2026.gpkg` (3.655 polígonos, 38.019,1 ha).
+- `incluir_icmbio_classe4.py`: inclusão incremental, sem refazer o cômputo. Δ = ICMBio menos as classes 1, 3 e 4
+  entra na classe 4 e é subtraído das classes 5 a 11 (camadas nacionais e por UF), com conferência de interseção
+  residual zero, retomada e resumos `ICMBio_incremental_*`.
+### Alterado
+- Reporte final (`Reporte_Final/`) regerado: Total 8.596.928,3 ha (vs22q) e 8.811.361,7 ha (vs2224q),
+  +8.201,2 e +8.210,9 ha em relação à v0.8.0. Classe 4 +37.257,5 / +37.263,1 ha; OR -28.196,1 / -28.202,3 ha;
+  UC -811,1 / -803,0 ha; TI -48,8 / -46,6 ha; demais classes < 0,2 ha.
+- `config_computo.py`: ICMBio deixa de constar como adiado em `FONTES` e `PENDENCIAS`.
+
 ## [0.8.0] - outubro
 ### Adicionado
 - `gerar_geopackages_finais.py`: reporte final em `Reporte_Final/` (Total + um GeoPackage por classe,

@@ -58,6 +58,8 @@ Recuperação da Vegetação Nativa.
   *No cômputo 2026:* usado o arquivo ORR 2025 como entregue (4 polígonos, um por bioma, já dissolvidos; sem Pampa e Pantanal),
   pela **área total dos polígonos**, com ou sem VS (decisão de 21/09/2026); a VS fica como atributo. Ver `docs/tier5_or.md`.
 - **Outros projetos:** MMA e demais órgãos, com polígono, extensão e ano de implantação (Anexo 3).
+  *No cômputo 2026:* embargos PANGIA (só a VS dentro do embargo) e projetos do ICMBio (GEF Terrestre e
+  Restauração Ecológica), pela área total dos polígonos. Ver `docs/tier4_outros_projetos.md`.
 
 Os projetos entram no cômputo mesmo sem VS detectável.
 

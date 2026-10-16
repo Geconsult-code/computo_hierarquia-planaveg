@@ -87,8 +87,11 @@ FONTES = {
             "imoveis": "CAR_Limite_Imovel_Julho26_Regularizacao_Ambiental",
         },
     },
-    "outros_projetos": {   # ICMBio ADIADO (decisão de 21/09/2026): não entra no Tier-1; retomar depois
-        "icmbio_restauracao": "Projetos_com_VegSec/ICMBio_Projetos_Restauracao_2026_com_VegSec.gpkg",   # PENDENTE: quais camadas
+    # ICMBio: incluído em 14/10/2026 pela área total dos polígonos (GEF Terrestre e Restauração Ecológica), já consolidado em
+    # SAIDA_INSUMOS/IN_ICMBio_2026.gpkg e somado à classe 4 por incluir_icmbio_classe4.py (ver docs/tier4_outros_projetos.md).
+    # Os arquivos abaixo (com VS) ficam só como referência; o cômputo não os lê.
+    "outros_projetos": {
+        "icmbio_restauracao": "Projetos_com_VegSec/ICMBio_Projetos_Restauracao_2026_com_VegSec.gpkg",
         "icmbio_gef_terrestre": "Projetos_com_VegSec/ICMBio_Projetos_GEF_Terrestre_2026_com_VegSec.gpkg",
     },
     "or": {"arquivo": "ORR_Observatorio_Restauracao_2026.gpkg", "camada": "20260917_ORdados_base_publico",
@@ -247,7 +250,8 @@ CAMPOS_CAR_REG = {"cod_tema": "cod_tema", "nom_tema": "nom_tema", "cod_imovel": 
                   "status_car": "ind_status", "condicao_car": "des_condic"}
 
 # ---------------------------------------------------------------------------
-# Classe 4 - Outros projetos (por ora: embargos PANGIA; ICMBio adiado). A área da classe é a VS DENTRO do embargo.
+# Classe 4 - Outros projetos: embargos PANGIA (a área é a VS DENTRO do embargo) e, desde 14/10/2026, ICMBio (área total
+# dos polígonos, incluída de forma incremental por incluir_icmbio_classe4.py).
 # ---------------------------------------------------------------------------
 # Decidido pelo usuário: embargos PANGIA entram como "Outros projetos" só pela interseção com a VS qualificada
 # (duas versões), nunca pela extensão total. E1 a E4 confirmadas pelo usuário em 21/09/2026 (ver docs/tier4_outros_projetos.md):
@@ -399,7 +403,6 @@ CAR_CATEGORIAS_PRECEDENCIA = [c for g in CAR_GRUPOS_PRECEDENCIA for c in g]     
 # parcelas do SIGEF entram, qualquer que seja o status). Implementado em computo.governanca.apa_area_publica.
 APA_AREA_PUBLICA = "(APA menos CAR total) união (SIGEF_Publico_em_APA ∩ APA) - CAR_Brasil_Maio2026_Imovel_Area_Total_dissolvido_UF e SIGEF_Publico_em_APA.gpkg"
 PENDENCIAS = [
-    "ICMBio (adiado em 21/09/2026): quais camadas são projetos; ver análise de atributos e sobreposição (Analise_Atributos_e_Sobreposicao_Projetos_IBAMA_ICMBio.xlsx).",
     "OR: trocado para o ORR 2026 em 24/09/2026 (nível de projeto, 86.281 polígonos, todos os status - ver comentário de ELEGIBILIDADE_OR); "
     "se sair versão mais nova, trocar FONTES['or'].",
     "APA/UC: SIGEF_Publico_em_APA.gpkg incorporado em 24/09/2026 para recuperar como pública a parte do CAR total que é imóvel "

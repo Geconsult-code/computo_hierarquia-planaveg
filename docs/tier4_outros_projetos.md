@@ -1,8 +1,13 @@
-# Classe 4: Outros projetos (por ora, embargos PANGIA)
+# Classe 4: Outros projetos (embargos PANGIA e ICMBio)
 
-Quarta classe da hierarquia do Anexo 1, Camada 2 (projetos). A classe reúne projetos do MMA e de outros órgãos; em 2026 o
-ICMBio ficou fora (adiado) e a única fonte é o cadastro de **áreas embargadas do IBAMA (PANGIA, 20/09/2026)**. Diferente das
-classes 1 e 3, **só entra a vegetação secundária (VS) dentro do embargo**, nunca a extensão total do polígono (decisão de 20/09/2026).
+Quarta classe da hierarquia do Anexo 1, Camada 2 (projetos). A classe reúne projetos do MMA e de outros órgãos. Em 2026 tem duas
+fontes:
+
+- **Áreas embargadas do IBAMA (PANGIA, 20/09/2026)**: diferente das classes 1 e 3, **só entra a vegetação secundária (VS) dentro do
+  embargo**, nunca a extensão total do polígono (decisão de 20/09/2026). Seções "Entradas" a "Dados pessoais" abaixo.
+- **Projetos do ICMBio (GEF Terrestre e Restauração Ecológica)**, incluídos em 14/10/2026 pela **área total dos polígonos**, sem
+  cruzamento com a VS. Seção [ICMBio](#icmbio-incluído-em-14102026).
+
 A classe subtrai as classes 1 (Recooperar) e 3 (SICAR-regularização) e resolve a sobreposição entre embargos.
 
 ## Entradas
@@ -37,7 +42,7 @@ versão 2022, 4 embargos ficam sem VS).
 4. `<p>_area_liquida_ha` = VS no embargo - sobreposta às classes anteriores - sobreposta entre embargos. Os polígonos líquidos são disjuntos
    entre si e das classes 1 e 3 (camadas `P2_OUTROS_PROJETOS_vs22q` e `P2_OUTROS_PROJETOS_vs2224q`). Como a área da classe é VS, área líquida e VS líquida são a mesma coisa.
 
-## Resultados (dados de 20/09/2026)
+## Resultados (dados de 20/09/2026, só PANGIA; com o ICMBio ver a seção seguinte)
 
 | | vs22q | vs2224q |
 |---|---|---|
@@ -48,6 +53,52 @@ versão 2022, 4 embargos ficam sem VS).
 | Sobreposta entre embargos (ha) | 45.758,2 | 43.924,9 |
 | **Área líquida da classe 4 (ha)** | **356.833,7** | **348.571,8** |
 | Acumulado das classes 1, 3 e 4 (ha) | 497.446,2 | 489.184,4 |
+
+## ICMBio (incluído em 14/10/2026)
+
+### Seleção dos polígonos (decisões de 14/10/2026)
+
+| Item | Regra |
+|---|---|
+| Arquivos e camadas | `ICMBio_Projetos_GEF_Terrestre_2026` (as 7 camadas) e, de `ICMBio_Projetos_Restauracao_2026`, só a camada **Restauração Ecológica** (Áreas Degradadas e Embargos > 5 ha ficam fora) |
+| Área | total do polígono, sem cruzamento com a VS: a mesma geometria nas duas versões da VS |
+| Sobreposição dentro do GEF | em cada grupo de polígonos sobrepostos fica um só, o maior; entre cópias idênticas, o da camada `_ORR` |
+| Sobreposição dentro da Restauração Ecológica | mesma regra (fica o maior; sobreposição > 0,01 ha) |
+| Entre os dois arquivos | fica o GEF; a Restauração Ecológica é recortada por ele |
+
+| | Polígonos | Área (ha) |
+|---|---:|---:|
+| GEF Terrestre, após a seleção | 602 | 4.588,5 |
+| Restauração Ecológica, após a seleção interna | 3.190 | perda de 496,8 ha nas sobreposições |
+| Restauração Ecológica, após o recorte pelo GEF (137 removidos, 40 recortados) | 3.053 | 33.430,6 |
+| **Total do insumo `Insumos/IN_ICMBio_2026.gpkg`** | **3.655** | **38.019,1** |
+
+As planilhas de validação da seleção (`ICMBio_Validacao_Sobreposicoes.gpkg` e `.xlsx`) estão em `Computo_Planaveg_2026\Validacao_ICMBio`.
+
+### Inclusão incremental (`incluir_icmbio_classe4.py`)
+
+O cômputo não foi refeito. Cada classe k > 4 já é a sua fonte menos as classes 1 a k-1; sendo Δ a parte do ICMBio ainda fora das
+classes 1, 3 e 4, a nova classe k é a classe k atual menos Δ, o mesmo resultado de recalcular tudo. O script, por versão da VS:
+
+1. calcula Δ = ICMBio - (classes 1, 3 e 4);
+2. acrescenta Δ à classe 4 (`P2_OUTROS_PROJETOS_<versão>`, peças `ICMBIO-nnnnn`) e grava `P2_OUTROS_PROJETOS_ICMBIO_poligonos`;
+3. subtrai Δ das classes 5 a 11 (camadas nacionais e `_por_uf`), alterando só as feições que tocam Δ;
+4. relê as feições alteradas e confere que a interseção restante com Δ é zero.
+
+| Versão da VS | vs22q | vs2224q |
+|---|---:|---:|
+| ICMBio já coberto pelas classes 1, 3 e 4 (ha) | 761,6 | 756,0 |
+| **Δ acrescentado à classe 4 (ha)** | **37.257,5** | **37.263,1** |
+| Retirado da classe 5, OR (ha) | 28.196,1 | 28.202,3 |
+| Retirado da classe 7, UC (ha) | 811,1 | 803,0 |
+| Retirado da classe 6, TI (ha) | 48,8 | 46,6 |
+| Retirado das classes 8 a 11 (ha) | 0,3 | 0,3 |
+| **Efeito no total do cômputo (ha)** | **+8.201,2** | **+8.210,9** |
+| **Classe 4 final, PANGIA + ICMBio (ha, campo `computo`)** | **394.091,2** | **385.834,9** |
+
+A sobreposição com o OR vem das camadas do GEF com "ORR" no nome, que são os mesmos projetos do Observatório: como a classe 4
+precede a 5, essa área passou a contar como ICMBio. Interseção residual depois da gravação: 0 em todas as camadas. O reporte final
+(`Reporte_Final/`) foi regerado depois da inclusão.
 
 ## E4 (decidido em 21/09/2026: não filtrar): data do embargo x ano da VS
 

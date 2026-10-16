@@ -111,4 +111,5 @@ A UC pede ~5 GB de memória; o cálculo independente (por componente conexo) foi
 - O `Id` do ProManguezal vem zerado (não identifica polígono); a precedência dentro da classe usa só o identificador da peça de VS (a sobreposição entre os polígonos do ProManguezal é nula).
 - As APAs usam o CAR total da versão de maio de 2026 e o SIGEF de setembro de 2026 (todos os status); a área privada retirada e a recuperação SIGEF são as mesmas para as duas versões da VS.
 - Os "Resultados" acima são anteriores ao SIGEF e ao ORR 2026 (24/09/2026); pendente uma rodada nacional com as duas mudanças (ver nota na seção Resultados).
-- Classes 9 a 11 (APP, AUR, RL do CAR) e ICMBio: próximas etapas.
+- Classes 9 a 11 (APP, AUR, RL do CAR): concluídas (`docs/tier9_11_car.md`). ICMBio: incluído na classe 4 em 14/10/2026; a área
+  comum saiu das classes 6 a 8 (TI -48,8 / -46,6 ha; UC -811,1 / -803,0 ha; Manguezal -0,2 ha, em vs22q / vs2224q).
