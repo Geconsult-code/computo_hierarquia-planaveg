@@ -22,7 +22,8 @@ LOGS = SAIDA / "_logs"
 PROGRESSO = SAIDA / "_progresso"                # checkpoints JSON (retomada automática)
 SAIDA_INSUMOS = SAIDA / "Insumos"               # passo 1: IN_<CLASSE> (elegíveis, polígonos inteiros)
 SAIDA_TIER1 = SAIDA / "Tier1_Recooperar"        # passo 2 (classe 1): P2_RECOOPERAR + tabelas
-SAIDA_TIER3 = SAIDA / "Tier3_CAR_Regularizacao" # passo 2 (classe 3, SICAR-regularização); a classe 2 (MonitoRAD) está desativada
+SAIDA_TIER2 = SAIDA / "Tier2_MonitoRAD"         # classe 2 (MonitoRAD), incluída por incluir_monitorad_classe2.py (20/10/2026)
+SAIDA_TIER3 = SAIDA / "Tier3_CAR_Regularizacao" # passo 2 (classe 3, SICAR-regularização)
 SAIDA_TIER4 = SAIDA / "Tier4_Outros_Projetos"   # passo 2 (classe 4, Outros projetos: por ora só embargos PANGIA x VS)
 SAIDA_TIER5 = SAIDA / "Tier5_OR"                # passo 2 (classe 5, Observatório da Restauração)
 SAIDA_TIER6 = SAIDA / "Tier6_TI"                # passo 3 (classe 6, VS em Terras Indígenas)
@@ -96,7 +97,11 @@ FONTES = {
     },
     "or": {"arquivo": "ORR_Observatorio_Restauracao_2026.gpkg", "camada": "20260917_ORdados_base_publico",
            "campo_bioma": "Bioma", "campo_area": "AreaCalc_h"},   # trocado para o ORR 2026 em 24/09/2026 (decisão abaixo)
-    "monitorad": None,   # NÃO ENTRA no cômputo 2026 (dados ainda não recebidos)
+    # MonitoRAD (IBAMA, recebido em 20/10/2026): polígonos "Com indício de recuperação" de MonitoRAD_ANALISE, recortados
+    # pelo próprio embargo; sobreposição entre embargos: fica o mais antigo (decisões de 20/10/2026). Área total do
+    # polígono, sem cruzamento com a VS. Insumo consolidado: SAIDA_INSUMOS/IN_MonitoRAD_2026.gpkg (consolidar_monitorad.py).
+    "monitorad": {"arquivo": "IBAMA_Areas_Embargadas_MonitoRAD2026.gpkg", "camada": "MonitoRAD_ANALISE",
+                  "filtro": "avaliacao = 'Com indício de recuperação'", "camada_embargos": "MonitoRAD_EMBARGOS"},
     # --- Camada 1 (Governança) ---
     # Classes 6 a 8: entram as peças "VS qualificada x território" dos cruzamentos já calculados (uma peça por território x feição de VS).
     "ti": {
@@ -335,7 +340,7 @@ VS_CAMADAS = {
 # ---------------------------------------------------------------------------
 HIERARQUIA = [
     dict(ordem=1, codigo="RECOOPERAR", nome="Recooperar (IBAMA)", camada=2, criterio="Intencionalidade", ativo=True),
-    dict(ordem=2, codigo="MONITORAD", nome="MonitoRAD (IBAMA)", camada=2, criterio="Intencionalidade", ativo=False),
+    dict(ordem=2, codigo="MONITORAD", nome="MonitoRAD (IBAMA)", camada=2, criterio="Intencionalidade", ativo=True),
     dict(ordem=3, codigo="SICAR_REGULARIZACAO", nome="SICAR - Analisado, em regularização ambiental (área a recuperar)", camada=2, criterio="Intencionalidade", ativo=True),
     dict(ordem=4, codigo="OUTROS_PROJETOS", nome="Outros projetos (MMA, ICMBio e demais órgãos)", camada=2, criterio="Intencionalidade", ativo=True),
     dict(ordem=5, codigo="OR", nome="Observatório da Restauração (formato público)", camada=2, criterio="Intencionalidade", ativo=True),

@@ -32,16 +32,19 @@ def teste_camadas_coerentes_com_relatorio():
     assert cod["APP"]["ordem"] < cod["AUR"]["ordem"] < cod["RL"]["ordem"], "CAR: APP > AUR > RL"
 
 
-def teste_monitorad_desativado():
+def teste_monitorad_ativo():
+    # MonitoRAD recebido e incluído como classe 2 em 20/10/2026 (incluir_monitorad_classe2.py)
     cod = {c["codigo"]: c for c in cfg.HIERARQUIA}
-    assert cod["MONITORAD"]["ativo"] is False
-    assert "MONITORAD" not in [c["codigo"] for c in cfg.classes_ativas()]
-    assert cfg.FONTES["monitorad"] is None
+    assert cod["MONITORAD"]["ativo"] is True and cod["MONITORAD"]["ordem"] == 2
+    assert [c["codigo"] for c in cfg.classes_ativas()][:2] == ["RECOOPERAR", "MONITORAD"]
+    assert cfg.FONTES["monitorad"]["filtro"].endswith("'Com indício de recuperação'")
+    from computo import anteriores
+    assert anteriores.arquivos_classes()["MONITORAD"][1] == "P2_MONITORAD"
 
 
 def teste_precedentes():
     assert cfg.precedentes("RECOOPERAR") == []
-    assert cfg.precedentes("SICAR_REGULARIZACAO") == ["RECOOPERAR"]          # MonitoRAD inativo
+    assert cfg.precedentes("SICAR_REGULARIZACAO") == ["RECOOPERAR", "MONITORAD"]
     assert cfg.precedentes("RL") == [c["codigo"] for c in cfg.classes_ativas() if c["codigo"] != "RL"]
 
 
@@ -221,7 +224,7 @@ def teste_config_embargos_pangia():
     import config_computo as c
     f = c.FONTES["embargos_pangia"]
     assert set(f["cruzamento"]) == set(c.VS_VERSOES)
-    assert c.precedentes("OUTROS_PROJETOS") == ["RECOOPERAR", "SICAR_REGULARIZACAO"]      # MonitoRAD (inativo) não entra
+    assert c.precedentes("OUTROS_PROJETOS") == ["RECOOPERAR", "MONITORAD", "SICAR_REGULARIZACAO"]
     assert c.SAIDA_TIER4.name == "Tier4_Outros_Projetos"
     # nenhum campo pessoal segue para o cômputo
     assert not set(c.CAMPOS_EMBARGO_PANGIA.values()) & set(c.COLUNAS_PESSOAIS_PANGIA)
@@ -305,7 +308,7 @@ def teste_config_or():
     import config_computo as c
     f = c.FONTES["or"]
     assert f["arquivo"].startswith("ORR_") and f["camada"]
-    assert c.precedentes("OR") == ["RECOOPERAR", "SICAR_REGULARIZACAO", "OUTROS_PROJETOS"]      # MonitoRAD (inativo) não entra
+    assert c.precedentes("OR") == ["RECOOPERAR", "MONITORAD", "SICAR_REGULARIZACAO", "OUTROS_PROJETOS"]
     assert c.SAIDA_TIER5.name == "Tier5_OR" and c.CELULA_VS_OR_GRAUS > 0
     assert set(c.BIOMA_IBGE_PARA_VS) >= {"Amazônia", "Caatinga", "Cerrado", "Mata Atlântica"}   # os 4 biomas do ORR
 
@@ -315,7 +318,7 @@ def teste_classes_anteriores_por_versao():
     import importlib
     m = importlib.import_module("2_camada2_projetos")
     sem = m._arquivos_classes()
-    assert set(sem) == {"RECOOPERAR", "SICAR_REGULARIZACAO"}
+    assert set(sem) == {"RECOOPERAR", "MONITORAD", "SICAR_REGULARIZACAO"}   # MonitoRAD: área total, sem VS
     com = m._arquivos_classes("vs2224q")
     assert com["OUTROS_PROJETOS"][1] == "P2_OUTROS_PROJETOS_vs2224q"
     try:
@@ -440,7 +443,7 @@ def teste_elegibilidade_e_prioridades_governanca():
 def teste_config_camada1():
     import config_computo as c
     from computo import anteriores
-    assert c.precedentes("TI") == ["RECOOPERAR", "SICAR_REGULARIZACAO", "OUTROS_PROJETOS", "OR"]
+    assert c.precedentes("TI") == ["RECOOPERAR", "MONITORAD", "SICAR_REGULARIZACAO", "OUTROS_PROJETOS", "OR"]
     assert c.precedentes("UC")[-1] == "TI" and c.precedentes("MANGUEZAL")[-2:] == ["TI", "UC"]
     assert c.CAR_CATEGORIAS_PRECEDENCIA == ["Habilitados", "Analisados", "Nao_Analisados"]
     for k in ("ti", "uc", "manguezal"):
@@ -539,7 +542,8 @@ def teste_config_car():
     assert cfg.CAR_GRUPOS_PRECEDENCIA == [["Habilitados"], ["Analisados", "Nao_Analisados"]] and cfg.CAR_ROTULOS_GRUPOS == ["H", "AN"]
     from computo import car as _car
     assert [b[2] for b in _car.blocos()] == ["APP_H", "AUR_H", "RL_H", "APP_AN", "AUR_AN", "RL_AN"]
-    assert cfg.precedentes("APP") == ["RECOOPERAR", "SICAR_REGULARIZACAO", "OUTROS_PROJETOS", "OR", "TI", "UC", "MANGUEZAL"]
+    assert cfg.precedentes("APP") == ["RECOOPERAR", "MONITORAD", "SICAR_REGULARIZACAO", "OUTROS_PROJETOS", "OR", "TI", "UC",
+                                      "MANGUEZAL"]
     assert cfg.precedentes("RL")[-2:] == ["APP", "AUR"]
     from computo import anteriores, car
     assert car.CLASSES == ["APP", "AUR", "RL"] and set(anteriores.arquivos_classes("vs22q")) >= {"APP", "AUR", "RL"}

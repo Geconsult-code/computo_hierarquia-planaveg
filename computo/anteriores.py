@@ -14,6 +14,7 @@ from .territorio import Limites
 
 # nomes de arquivo (iguais aos usados pelos scripts 2 e 3)
 ARQ_OUT_RECOOPERAR = "P2_Recooperar_2026.gpkg"
+ARQ_OUT_MONITORAD = "P2_MonitoRAD_2026.gpkg"
 ARQ_OUT_CAR_REG = "P2_CAR_Regularizacao_Junho26.gpkg"
 ARQ_OUT_EMB = "P2_Outros_Projetos_PANGIA_20260920.gpkg"
 ARQ_OUT_OR = "P2_OR_2026.gpkg"
@@ -35,6 +36,7 @@ def carregar_limites() -> Limites:
 def arquivos_classes(versao=None) -> dict:
     """{classe: (arquivo, camada)} das classes já processadas. As que dependem da versão da VS só entram se ``versao`` for dada."""
     arq = {"RECOOPERAR": (cfg.SAIDA_TIER1 / ARQ_OUT_RECOOPERAR, "P2_RECOOPERAR"),
+           "MONITORAD": (cfg.SAIDA_TIER2 / ARQ_OUT_MONITORAD, "P2_MONITORAD"),
            "SICAR_REGULARIZACAO": (cfg.SAIDA_TIER3 / ARQ_OUT_CAR_REG, "P2_CAR_REGULARIZACAO")}
     if versao:
         arq["OUTROS_PROJETOS"] = (cfg.SAIDA_TIER4 / ARQ_OUT_EMB, f"P2_OUTROS_PROJETOS_{versao}")

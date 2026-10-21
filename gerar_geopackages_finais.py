@@ -1,7 +1,7 @@
 """Gera os GeoPackages finais de reporte do cômputo 2026, no padrão do cômputo 2025
 (``Computo_Planaveg_2025``), acrescentando o atributo de UF/estado pedido em 28/09/2026.
 
-Cada classe ativa da hierarquia (1 Recooperar, 3 SICAR-Regularização, 4 Outros Projetos, 5 OR, 6 TI, 7 UC,
+Cada classe ativa da hierarquia (1 Recooperar, 2 MonitoRAD, 3 SICAR-Regularização, 4 Outros Projetos, 5 OR, 6 TI, 7 UC,
 8 Manguezal, 9 APP, 10 AUR, 11 RL) é dissolvida por UF x bioma (uma peça por combinação, juntando todas as
 categorias - exceto no CAR, ver abaixo). As classes de governança/CAR (6 a 11) já têm peças líquidas com
 ``uf``/``bioma`` prontos (saída dos passos 3 e 3b); as classes de projeto (1, 3, 4, 5) só têm o polígono
@@ -58,13 +58,14 @@ CATEGORIAS_CAR = ["Habilitados", "Analisados", "Nao_Analisados"]
 SUFIXO_CATEGORIA = {"Habilitados": "Habilitados", "Analisados": "Analisados", "Nao_Analisados": "Nao_Analisados"}
 
 # classes de projeto (camada 2): só têm o polígono inteiro, precisam ser fragmentadas em células UF x bioma
-PROJETO = ["RECOOPERAR", "SICAR_REGULARIZACAO", "OUTROS_PROJETOS", "OR"]
+PROJETO = ["RECOOPERAR", "MONITORAD", "SICAR_REGULARIZACAO", "OUTROS_PROJETOS", "OR"]
 # RECOOPERAR e SICAR_REGULARIZACAO: mesma geometria nas duas versões da VS (não dependem da VS - ver computo/anteriores.py)
-PROJETO_INDEPENDENTE_DE_VS = ["RECOOPERAR", "SICAR_REGULARIZACAO"]
+PROJETO_INDEPENDENTE_DE_VS = ["RECOOPERAR", "MONITORAD", "SICAR_REGULARIZACAO"]
 
 # nome do arquivo final por classe (padrão 2025, com os nomes novos para SICAR_REGULARIZACAO e MANGUEZAL)
 ARQUIVO_FINAL = {
     "RECOOPERAR": "Planaveg_2026_Projetos_Recooperar.gpkg",
+    "MONITORAD": "Planaveg_2026_Projetos_MonitoRAD.gpkg",
     "SICAR_REGULARIZACAO": "Planaveg_2026_SICAR_Regularizacao.gpkg",
     "OUTROS_PROJETOS": "Planaveg_2026_Projetos_Outros.gpkg",
     "OR": "Planaveg_2026_Projetos_ORR.gpkg",
