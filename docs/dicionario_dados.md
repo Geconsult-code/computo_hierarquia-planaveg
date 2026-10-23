@@ -9,6 +9,7 @@ campos vêm da leitura direta dos arquivos.
 |---|---|---|
 | `IBAMA_Projetos_Recooperar_2026_com_area.gpkg` (EPSG:4674); com a VS incorporada: `Projetos_com_VegSec\IBAMA_Projetos_Recooperar_2026_com_VegSec.gpkg` (entrada do Tier-1) | Licenciamento (76); Reparação por danos (1.181); Embargo (357); Outras áreas (76) | `status_are`: Em recuperação, Recuperada, Pendente de recuperação, ATUALIZAR (6 no licenciamento). Campo `area_ha` |
 | `IBAMA_Projetos_Recooperar_2025_com_area.gpkg` (EPSG:4326) | Licenciamento (67); Reparação (2.553); Embargo (1.726); Outras (136) | Muitos `ATUALIZAR` e "Competência de outros órgãos". Versão anterior; relação com a 2026 a definir |
+| `IBAMA_Areas_Embargadas_MonitoRAD2026.gpkg` (entrada da classe 2, via `Insumos\IN_MonitoRAD_2026.gpkg`) | `MonitoRAD_ANALISE` (clusters de NDVI; 2.392 peças "Com indício de recuperação"); `MonitoRAD_EMBARGOS` (polígonos dos embargos) | Campos `avaliacao`, `value`, `seq_tad` (= `NUM_TAD_1` dos embargos), `Area_ha`; `dat_embarg` nos embargos. Ver `docs/tier2_monitorad.md` |
 | `CAR_Junho26_Regularizacao_Ambiental.gpkg` (EPSG:4674; só AC, MT, PB, RJ e SP; entrada da classe 3) | Limite do imóvel (2.398); APPs (44.631); RL (2.477); AUR (183); Vegetação nativa (2.323); **Área a recompor APP (1.242); Área a recompor RL (1.238)** | Camadas nomeadas "Julho26" dentro de arquivo "Junho26". Chave `cod_imovel`. Fonte da classe SICAR-regularização |
 | `ICMBio_Projetos_Restauracao_2026_com_area.gpkg` | Restauracao_Ecologica (3.609); Areas_Degradadas (3.855); Embargos_maior5ha (3.685) | CRS não definido no arquivo. Só `Restauracao_Ecologica` entra na classe 4 (decisão de 14/10/2026) |
 | `ICMBio_Projetos_GEF_Terrestre_2026_com_area.gpkg` | 7 camadas (Pantanal, Pampa, Caatinga; 4 a 326 feições) | CRS heterogêneos (sem CRS, 32722, 31981, 31984), geometrias 3D. As 7 camadas entram na classe 4 (decisão de 14/10/2026) |
@@ -43,7 +44,6 @@ APP/RL/AUR, versões 2022, 2022 qualificada e 2024), `VS-Terras_Indigenas`, `VS-
 
 ## Não disponíveis
 
-- MonitoRAD: dados não recebidos (fora do cômputo 2026).
 - Florestas Públicas Não Destinadas (CNFP): fonte a definir.
 
 ## Saídas do Tier-1 (Recooperar 2026)
@@ -63,6 +63,14 @@ Colunas próprias do Tier-1 na tabela de polígonos: `id_proj` (`REC26-<LIC|REP|
 `prec_ordem`, `n_precedentes_sobrepostos`, `area_sobreposta_ha`, `area_liquida_ha`, `uf_principal`, `ufs`,
 `bioma_principal`, `biomas`, `uf_diverge_fonte`, `vs22q_*` e `vs2224q_*` (`_tem`, `_area_ha`, `_pct`, `_n_pol`,
 `_ha_<bioma>`, `_completa_recalc_ha`, `_liq_ha`).
+
+## Saídas da classe 2 (MonitoRAD)
+
+| Arquivo | Conteúdo |
+|---|---|
+| `Insumos\IN_MonitoRAD_2026.gpkg` (`IN_MONITORAD`) | 2.361 polígonos "Com indício de recuperação" recortados pelo próprio embargo, sem sobreposição interna (`consolidar_monitorad.py`) |
+| `Tier2_MonitoRAD\P2_MonitoRAD_2026.gpkg` | `P2_MONITORAD` (Δ líquido da classe 1, `id_proj` MRAD-nnnnn, UF e bioma principais, `area_liquida_ha`); `P2_MONITORAD_poligonos` (polígonos inteiros, `elegivel_computo = 1`) |
+| `Tier2_MonitoRAD\MonitoRAD_incremental_resumo.csv` / `_alteracoes.csv` / `_estado.json`, `_log_monitorad_incremental.txt` | Área retirada por classe e versão, feições alteradas, retomada e log da inclusão |
 
 ## Saídas da classe 3 (SICAR-regularização)
 

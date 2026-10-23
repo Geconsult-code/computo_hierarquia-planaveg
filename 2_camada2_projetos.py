@@ -15,6 +15,9 @@ Implementado na v0.4.0: classe 4, OUTROS_PROJETOS (por ora só os embargos PANGI
     Só a VS DENTRO do embargo entra (decisão de 20/09/2026). Subtrai as classes 1 e 3 e resolve a sobreposição entre embargos
     (o mais antigo fica com a área). A geometria da classe depende da versão da VS (vs22q, vs2224q): há um conjunto de
     polígonos líquidos por versão.
+Alterado na v1.1.0 (21/10/2026): os embargos PANGIA SAÍRAM da hierarquia; a classe 4 passa a ser só o ICMBio (GEF Terrestre e
+    Restauração Ecológica), pela área total dos polígonos (Insumos/IN_ICMBio_2026.gpkg), subtraídas as classes 1, 2 e 3
+    (classe_outros_projetos_icmbio; a fonte vem de config_computo.FONTES_OUTROS_PROJETOS). Saída: Tier4/P2_Outros_Projetos_2026.gpkg.
 Implementado na v0.5.0 (mantido na v0.6.0): classe 5, OR (Observatório da Restauração, ORR 2025; 4 polígonos dissolvidos por bioma).
     Área TOTAL dos polígonos (com ou sem VS, como as classes 1 e 3); subtrai as classes 1, 3 e 4, esta na versão da VS em cálculo
     (o líquido da classe 5 tem um conjunto por versão). VS como atributo.
@@ -651,6 +654,187 @@ def classe_outros_projetos(log, so_primeiros=None):
     return pol, liqs, cel_all, resumo, conf
 
 
+def classe_outros_projetos_icmbio(log):
+    """Classe 4 desde a v1.1.0 (21/10/2026): só os projetos do ICMBio, pela ÁREA TOTAL dos polígonos (sem VS).
+
+    Os embargos PANGIA saíram da hierarquia (decisão do usuário de 21/10/2026). O insumo IN_ICMBio_2026 (GEF Terrestre e
+    Restauração Ecológica, decisões de 14/10/2026) já vem sem sobreposição interna; mesmo assim a precedência dentro da classe é
+    aplicada (id_icmbio, o GEF primeiro). Subtrai as classes 1, 2 e 3. A geometria não depende da VS, mas a camada líquida é
+    gravada uma vez por versão (P2_OUTROS_PROJETOS_vs22q e _vs2224q, iguais), que é o que as classes seguintes leem."""
+    import geopandas as gpd
+
+    P = list(cfg.VS_VERSOES)
+    arq_in = cfg.SAIDA_INSUMOS / cfg.ARQ_IN_ICMBIO
+    if not arq_in.exists():
+        raise FileNotFoundError(f"Não encontrei {arq_in} (insumo consolidado do ICMBio).")
+    cfg.SAIDA_TIER4.mkdir(parents=True, exist_ok=True)
+    g = io.ler_camada(arq_in, "IN_ICMBIO").sort_values("id_icmbio").reset_index(drop=True)
+    n = len(g)
+    ids = np.array([f"ICMBIO-{int(i):05d}" for i in g["id_icmbio"]], dtype=object)
+    geoms = np.array(g.geometry.values, dtype=object)
+    log(f"IN_ICMBIO: {n} polígonos ({g.groupby('fonte').size().to_dict()}); embargos PANGIA fora da classe (21/10/2026)")
+    por_classe = _geoms_por_classe("OUTROS_PROJETOS")
+    prec = np.concatenate([x for _, x in por_classe])
+    log(f"classes anteriores subtraídas: {[c for c, _ in por_classe]} ({len(prec)} polígonos líquidos)")
+
+    # 1) subtrai as classes anteriores, uma por vez (separar mostra o efeito de cada classe)
+    a_bruta = geo.area_ha(geoms)
+    atual = geoms.copy()
+    retiradas = {}
+    for cod, gp in por_classe:
+        iv = np.where(np.array([x is not None for x in atual]))[0]
+        rest, ret = subtrair_precedentes(atual[iv], gp)
+        atual[iv] = rest
+        r = np.zeros(n)
+        r[iv] = ret
+        retiradas[cod] = r
+        log(f"  sobreposição com {cod}: {r.sum():,.2f} ha em {(r > 0).sum()} polígonos")
+    sobre_prec = sum(retiradas.values())
+    # 2) sobreposição dentro da classe (esperada zero: o insumo já é disjunto)
+    iv = np.where(np.array([x is not None for x in atual]))[0]
+    liquidos = np.array([None] * n, dtype=object)
+    sobre_intra = np.zeros(n)
+    n_prec = np.zeros(n, dtype=int)
+    if len(iv):
+        liq_v, sob_v, np_v = liquido_por_precedencia(atual[iv], np.arange(len(iv)))
+        liquidos[iv], sobre_intra[iv], n_prec[iv] = liq_v, sob_v, np_v
+    a_liq = geo.area_ha(liquidos)
+    log(f"soma dos polígonos {a_bruta.sum():,.1f} ha | sobreposta às classes anteriores {sobre_prec.sum():,.1f} ha | "
+        f"na classe {sobre_intra.sum():,.3f} ha | líquida {a_liq.sum():,.1f} ha")
+
+    log("carregando limites IBGE (UF x bioma)...")
+    lim = _carregar_limites()
+    cel = tabela_celulas(geoms, liquidos, lim, log=log, cada=500)
+    principais = resumo_uf_bioma_por_poligono(cel, n)
+
+    pol = g.copy()
+    pol.insert(0, "id_proj", ids)
+    pol["area_inteira_ha"] = a_bruta
+    for cod, v in retiradas.items():
+        pol[f"sobreposta_{cod.lower()}_ha"] = v
+    pol["sobreposta_classes_anteriores_ha"] = sobre_prec
+    pol["sobreposta_na_classe_ha"] = sobre_intra
+    pol["area_liquida_ha"] = a_liq
+    pol["uf_principal"] = [x[0] for x in principais]
+    pol["ufs"] = [x[1] for x in principais]
+    pol["bioma_principal"] = [x[2] for x in principais]
+    pol["biomas"] = [x[3] for x in principais]
+    pol["elegivel_computo"] = (a_liq > 1e-6).astype(int)
+    pol = gpd.GeoDataFrame(pol, geometry="geometry", crs=g.crs)
+
+    out = cfg.SAIDA_TIER4 / ARQ_OUT_EMB
+    io.gravar_camada(pol, out, "P2_OUTROS_PROJETOS_poligonos", primeira=True)
+    m = np.array([x is not None for x in liquidos]) & (a_liq > 1e-6)
+    liq = gpd.GeoDataFrame(pd.DataFrame({"id_proj": ids[m], "fonte": g["fonte"].to_numpy()[m], "projeto": g["projeto"].to_numpy()[m],
+                                         "uf_principal": pol["uf_principal"].to_numpy()[m],
+                                         "bioma_principal": pol["bioma_principal"].to_numpy()[m], "area_liquida_ha": a_liq[m]}),
+                           geometry=geo.para_multi_lista(liquidos[m]), crs=g.crs)
+    for p in P:
+        io.gravar_camada(liq, out, f"P2_OUTROS_PROJETOS_{p}")
+    liqs = {p: liq for p in P}
+
+    c = cel.copy()
+    c["id_proj"] = ids[c["i"].to_numpy()]
+    c["fonte"] = g["fonte"].to_numpy()[c["i"].to_numpy()]
+    c[["id_proj", "fonte", "uf", "bioma", "area_completa_ha", "area_liquida_ha"]].to_csv(
+        cfg.SAIDA_TIER4 / "T4_areas_uf_bioma.csv", index=False, encoding="utf-8-sig")
+    agg = c.groupby(["fonte", "uf", "bioma"], as_index=False)[["area_completa_ha", "area_liquida_ha"]].sum()
+    agg.to_csv(cfg.SAIDA_TIER4 / "T4_resumo_uf_bioma.csv", index=False, encoding="utf-8-sig")
+    linhas = []
+    for nome, sub in [("TOTAL", pol)] + [(f"fonte/{f}", pol[pol["fonte"] == f]) for f in sorted(pol["fonte"].unique())]:
+        r = {"grupo": nome, "n_poligonos": len(sub), "n_com_area_liquida": int((sub["area_liquida_ha"] > 1e-6).sum()),
+             "area_poligonos_inteiros_ha": sub["area_inteira_ha"].sum()}
+        for cod in retiradas:
+            r[f"sobreposicao_{cod.lower()}_ha"] = sub[f"sobreposta_{cod.lower()}_ha"].sum()
+        r["sobreposicao_na_classe_ha"] = sub["sobreposta_na_classe_ha"].sum()
+        r["area_liquida_ha"] = sub["area_liquida_ha"].sum()
+        linhas.append(r)
+    resumo = pd.DataFrame(linhas)
+    resumo.to_csv(cfg.SAIDA_TIER4 / "T4_resumo.csv", index=False, encoding="utf-8-sig")
+    log("\n" + resumo.round(2).to_string(index=False))
+
+    # acumulado das classes 1, 2, 3 e 4 (o nome do arquivo segue o da v0.4.0, que as classes seguintes leem)
+    def _prep(caminho, classe):
+        a = pd.read_csv(caminho)
+        a = a.groupby(["categoria", "uf", "bioma"], as_index=False)[["area_liquida_ha", "vs22q_liquida_ha", "vs2224q_liquida_ha"]].sum()
+        return pd.DataFrame({"classe": classe, "categoria": a["categoria"], "uf": a["uf"], "bioma": a["bioma"],
+                             "area_liquida_vs22q_ha": a["area_liquida_ha"], "vs_liquida_vs22q_ha": a["vs22q_liquida_ha"],
+                             "area_liquida_vs2224q_ha": a["area_liquida_ha"], "vs_liquida_vs2224q_ha": a["vs2224q_liquida_ha"]})
+
+    def _sem_vs(df, classe, categoria):
+        d = df.groupby(["uf", "bioma"], as_index=False)["area_liquida_ha"].sum()
+        return pd.DataFrame({"classe": classe, "categoria": categoria, "uf": d["uf"], "bioma": d["bioma"],
+                             "area_liquida_vs22q_ha": d["area_liquida_ha"], "vs_liquida_vs22q_ha": np.nan,
+                             "area_liquida_vs2224q_ha": d["area_liquida_ha"], "vs_liquida_vs2224q_ha": np.nan})
+
+    partes = []
+    r1, r3 = cfg.SAIDA_TIER1 / "T1_resumo_categoria_uf_bioma.csv", cfg.SAIDA_TIER3 / "T3_resumo_categoria_tema_uf_bioma.csv"
+    if r1.exists():
+        partes.append(_prep(r1, "1 RECOOPERAR"))
+    if "MONITORAD" in [k for k, _ in por_classe]:   # classe 2: polígonos líquidos fragmentados por UF x bioma
+        arq2, cam2 = anteriores.arquivos_classes()["MONITORAD"]
+        m2 = io.ler_camada(arq2, cam2, colunas=["id_proj"])
+        g2 = np.array(m2.geometry.values, dtype=object)
+        c2 = tabela_celulas(g2, g2, lim, log=None)
+        partes.append(_sem_vs(c2, "2 MONITORAD", "monitorad"))
+    if r3.exists():
+        partes.append(_prep(r3, "3 SICAR_REGULARIZACAO"))
+    for f in sorted(c["fonte"].unique()):
+        partes.append(_sem_vs(c[c["fonte"] == f], "4 OUTROS_PROJETOS", f))
+    acum = pd.concat(partes, ignore_index=True)
+    acum.to_csv(cfg.SAIDA_TIER4 / "T4_acumulado_classes_1_3_4.csv", index=False, encoding="utf-8-sig")
+    tot = acum.groupby("classe")[["area_liquida_vs22q_ha", "area_liquida_vs2224q_ha"]].sum()
+    log("\nacumulado (área líquida, sem dupla contagem entre classes):\n" + tot.round(1).to_string()
+        + f"\n  total vs22q {tot['area_liquida_vs22q_ha'].sum():,.1f} ha | total vs2224q {tot['area_liquida_vs2224q_ha'].sum():,.1f} ha")
+
+    # ---- conferências independentes ----
+    conf = []
+
+    def chk(nome, valor, limite, obs=""):
+        conf.append({"conferencia": nome, "valor": valor, "limite": limite, "ok": bool(abs(valor) <= limite), "obs": obs})
+
+    tol = max(1e-3, 5e-7 * float(a_bruta.sum()))
+    chk("área inteira - (sobreposta classes anteriores + na classe + líquida) (ha, max por polígono)",
+        float(np.abs(a_bruta - sobre_prec - sobre_intra - a_liq).max()), 1e-3, "identidade de área por polígono")
+    U = geo.uniao_robusta(list(geoms))
+    R_prec = geo.uniao_robusta(list(prec))
+    esp = geo.so_poligonos(geo.diferenca_robusta([U], [R_prec])[0]) if R_prec is not None else U
+    chk("área líquida - área (união do ICMBio - união das classes 1, 2 e 3) (ha)",
+        float(a_liq.sum() - (geo.area_ha([esp])[0] if esp is not None else 0.0)), tol, "soma dos líquidos x cálculo independente por união")
+    lg = liq.geometry.values
+    tree = STRtree(lg)
+    ii, jj = tree.query(lg, predicate="intersects")
+    mm = ii < jj
+    ov = geo.area_ha(geo.intersecao_robusta(lg[ii[mm]], lg[jj[mm]])) if mm.any() else np.array([0.0])
+    chk("sobreposição entre polígonos líquidos (ha)", float(ov.sum()), 1e-3)
+    tp = STRtree(prec)
+    ii, jj = tp.query(lg, predicate="intersects")
+    ov2 = geo.area_ha(geo.intersecao_robusta(lg[ii], prec[jj])) if len(ii) else np.array([0.0])
+    chk("sobreposição dos líquidos com as classes 1, 2 e 3 (ha)", float(ov2.sum()), 1e-3)
+    chk("área inteira - soma das células UF x bioma (ha, max por polígono)",
+        float(np.abs(a_bruta - cel.groupby("i")["area_completa_ha"].sum().reindex(range(n)).fillna(0).to_numpy()).max()), 0.01)
+    chk("área inteira x area_ha_geo do insumo (ha, max por polígono)", float(np.abs(a_bruta - g["area_ha_geo"].to_numpy(float)).max()), 0.01)
+    chk("polígonos com área líquida sem UF principal", float(((a_liq > 1e-6) & pol["uf_principal"].isna().to_numpy()).sum()), 0)
+    chk("geometrias líquidas inválidas", float((~shapely.is_valid(lg)).sum()), 0)
+    conf = pd.DataFrame(conf)
+    conf.to_csv(cfg.SAIDA_TIER4 / "T4_conferencias.csv", index=False, encoding="utf-8-sig")
+    log("\n" + conf.to_string(index=False))
+    if not conf["ok"].all():
+        log("ATENÇÃO: há conferências fora do limite (ver T4_conferencias.csv).")
+    log(f"gravado: {out}")
+    return pol, liqs, c, resumo, conf
+
+
+def classe_outros_projetos_ativa(log):
+    """Classe 4 conforme cfg.FONTES_OUTROS_PROJETOS: ICMBio (desde 21/10/2026) ou, até a v1.0.0, os embargos PANGIA."""
+    fontes = list(cfg.FONTES_OUTROS_PROJETOS)
+    if fontes == ["icmbio"]:
+        return classe_outros_projetos_icmbio(log)
+    if fontes == ["embargos_pangia"]:
+        return classe_outros_projetos(log)
+    raise NotImplementedError(f"combinação de fontes da classe 4 não implementada: {fontes}")
+
+
 def classe_or(log):
     """Classe 5: Observatório da Restauração. Área total dos polígonos; subtrai as classes 1, 3 e 4 (por versão da VS).
 
@@ -856,7 +1040,7 @@ def main(argv=None) -> int:
     classes = [
         ("RECOOPERAR", classe_recooperar, cfg.SAIDA_TIER1, "_log_passo2.txt"),
         ("CAR_REGULARIZACAO", classe_car_regularizacao, cfg.SAIDA_TIER3, "_log_passo2_car.txt"),
-        ("OUTROS_PROJETOS", classe_outros_projetos, cfg.SAIDA_TIER4, "_log_passo2_outros.txt"),
+        ("OUTROS_PROJETOS", classe_outros_projetos_ativa, cfg.SAIDA_TIER4, "_log_passo2_outros.txt"),
         ("OR", classe_or, cfg.SAIDA_TIER5, "_log_passo2_or.txt"),
     ]
     for nome, funcao, pasta, arq in classes:

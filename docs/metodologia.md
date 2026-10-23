@@ -50,13 +50,15 @@ Recuperação da Vegetação Nativa.
 
 - **Recooperar (IBAMA):** licenciamento (todas as áreas de LAC); reparação por danos (status a partir
   de "projeto protocolado"); embargos (status "em recuperação" ou "recuperada").
-- **MonitoRAD (IBAMA):** apenas clusters com indícios de recuperação por NDVI. *Não entra no cômputo
-  2026 (dados ainda não recebidos).*
+- **MonitoRAD (IBAMA):** apenas clusters com indícios de recuperação por NDVI. *No cômputo 2026:* polígonos
+  "Com indício de recuperação" da camada `MonitoRAD_ANALISE` (2.578 embargos da Amazônia Legal), pela **área total
+  do polígono**, sem cruzamento com a VS (decisões de 20/10/2026). Ver `docs/tier2_monitorad.md`.
 - **SICAR:** área a recuperar dos imóveis "Analisado, em regularização ambiental", pois há instrumento
   jurídico de compromisso com a recuperação.
 - **Observatório da Restauração:** polígonos no formato "público".
-  *No cômputo 2026:* usado o arquivo ORR 2025 como entregue (4 polígonos, um por bioma, já dissolvidos; sem Pampa e Pantanal),
-  pela **área total dos polígonos**, com ou sem VS (decisão de 21/09/2026); a VS fica como atributo. Ver `docs/tier5_or.md`.
+  *No cômputo 2026:* ORR 2026 em nível de projeto (86.281 polígonos, todos com privacidade "Público", os 6 biomas),
+  adotado em 24/09/2026 no lugar do ORR 2025 (4 polígonos dissolvidos por bioma). Entra pela **área total dos polígonos**,
+  com ou sem VS (decisão de 21/09/2026), sem filtro de status; a VS fica como atributo. Ver `docs/tier5_or.md`.
 - **Outros projetos:** MMA e demais órgãos, com polígono, extensão e ano de implantação (Anexo 3).
   *No cômputo 2026:* embargos PANGIA (só a VS dentro do embargo) e projetos do ICMBio (GEF Terrestre e
   Restauração Ecológica), pela área total dos polígonos. Ver `docs/tier4_outros_projetos.md`.
@@ -92,10 +94,16 @@ O cruzamento da VS com APP/RL/AUR dos imóveis selecionados vem do repositório
 
 ## 9. Decisões específicas do cômputo 2026
 
-- MonitoRAD fora do cômputo.
+- MonitoRAD (decisões de 20/10/2026): entram os polígonos "Com indício de recuperação", qualquer que seja o `value`, recortados
+  pelo polígono do próprio embargo (o que fica fora não é usado); onde embargos se sobrepõem fica o mais antigo (`dat_embarg`).
+  Incluído de forma incremental (`incluir_monitorad_classe2.py`): a parte livre da classe 1 entra na classe 2 e sai das classes 3 a 11.
 - Embargos PANGIA (20/09/2026): mantidos só os 50.674 polígonos reais; removidos 13.810 registros sem
   geometria e 26.843 pontos (microcírculos), com extensão corrigida. Entram na classe 4 (Outros projetos) só pela
   interseção com a VS qualificada (`docs/tier4_outros_projetos.md`).
+- ICMBio (decisões de 14/10/2026): entram na classe 4 pela área total, sem cruzamento com a VS, o GEF Terrestre (7 camadas) e a
+  camada Restauração Ecológica. Em cada grupo de polígonos sobrepostos fica o maior (nas cópias, o da camada `_ORR`); entre os dois
+  arquivos fica o GEF. Incluído de forma incremental (`incluir_icmbio_classe4.py`): a parte ainda livre das classes 1, 3 e 4 entra na
+  classe 4 e sai das classes 5 a 11, o mesmo resultado de recalcular tudo.
 - Classes de governança (6 TI, 7 UC, 8 Manguezal; `docs/tier6_8_governanca_publica.md`): a área da classe é a VS qualificada dentro do território, por versão da VS.
   TI: fases delimitada, declarada, homologada e regularizada. UC: só o limite da UC (a zona de amortecimento não é UC); nas APAs entra só a área pública
   (APA menos os imóveis do CAR). Manguezal: toda a VS do ProManguezal.
@@ -105,3 +113,35 @@ O cruzamento da VS com APP/RL/AUR dos imóveis selecionados vem do repositório
   As peças do cruzamento se sobrepõem dentro do mesmo imóvel (temas de APP sobrepostos e duplicatas): antes da precedência elas são unidas por imóvel.
 - Áreas calculadas de forma geodésica (elipsoide GRS80), em EPSG:4674, como no restante do projeto.
 - Itens ainda pendentes de decisão estão em `PENDENCIAS` no arquivo `config_computo.py`.
+
+## 10. Produto final do cômputo 2026
+
+A hierarquia é aplicada classe a classe (passos 2, 3 e 3b): cada classe já é gravada com a área líquida,
+sem as classes de maior prioridade. O script `gerar_geopackages_finais.py` dissolve cada classe por UF x
+bioma (classes de projeto são antes fragmentadas nas células UF x bioma) e grava o reporte em
+`Computo_Planaveg_2026/Reporte_Final/`, no padrão do cômputo 2025, com o atributo de UF e as classes do
+CAR separadas em Habilitados, Analisados e Não analisados (decisões de 28/09/2026). São geradas as duas
+versões da VS (2022 qualificada e 2022-2024 qualificada).
+
+Totais (campo `computo`, área geodésica líquida de cada classe): **8.824.118,4 ha** com a VS 2022 qualificada e
+**9.026.415,6 ha** com a VS 2022-2024 qualificada, com as 11 classes ativas (v1.0.0: MonitoRAD na classe 2; antes,
+8.596.928,3 e 8.811.361,7 ha na v0.9.0, com o ICMBio, e 8.588.727,1 e 8.803.150,8 ha na v0.8.0). A diferença entre as
+versões vem das classes de VS (6 a 11) e da parte PANGIA da classe 4 (PANGIA x VS); as classes 1, 2, 3 e 5 e o ICMBio
+não dependem da VS e são praticamente iguais nas duas versões.
+
+## 11. Pendências do cômputo 2026
+
+- **Florestas Públicas Não Destinadas (CNFP):** fonte do dado não definida; no reporte, `area_wit_fpnd = 0`
+  e `computo = area_tnc`.
+- **Arranjos de implementação (seção 7):** passos 5 e 6 ainda não implementados.
+- Demais itens em `PENDENCIAS`, no `config_computo.py`.
+
+## 12. Uso posterior
+
+O Total do reporte é a entrada do repositório
+[visualizacao_categoria-fundiaria](https://github.com/Geconsult-code/visualizacao_categoria-fundiaria),
+que fragmenta o cômputo por município e bacia e acrescenta atributos de filtro (categorias de CAR,
+APP/RL/AUR por categoria, componentes de projeto, UC/APA/RPPN e esferas, TI, assentamentos e
+quilombolas); desde a v1.2.0 o MonitoRAD é um componente próprio de PROJ. Na versão de 16/10/2026 (com o ICMBio) a área de cada classe foi conservada com diferença
+máxima de 0,002 ha, todas as classes têm 100% da área com a flag própria e a matriz de preenchimento dos
+atributos não tem nenhuma violação.

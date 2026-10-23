@@ -50,8 +50,9 @@ Recuperação da Vegetação Nativa.
 
 - **Recooperar (IBAMA):** licenciamento (todas as áreas de LAC); reparação por danos (status a partir
   de "projeto protocolado"); embargos (status "em recuperação" ou "recuperada").
-- **MonitoRAD (IBAMA):** apenas clusters com indícios de recuperação por NDVI. *Não entra no cômputo
-  2026 (dados ainda não recebidos).*
+- **MonitoRAD (IBAMA):** apenas clusters com indícios de recuperação por NDVI. *No cômputo 2026:* polígonos
+  "Com indício de recuperação" da camada `MonitoRAD_ANALISE` (2.578 embargos da Amazônia Legal), pela **área total
+  do polígono**, sem cruzamento com a VS (decisões de 20/10/2026). Ver `docs/tier2_monitorad.md`.
 - **SICAR:** área a recuperar dos imóveis "Analisado, em regularização ambiental", pois há instrumento
   jurídico de compromisso com a recuperação.
 - **Observatório da Restauração:** polígonos no formato "público".
@@ -93,7 +94,9 @@ O cruzamento da VS com APP/RL/AUR dos imóveis selecionados vem do repositório
 
 ## 9. Decisões específicas do cômputo 2026
 
-- MonitoRAD fora do cômputo.
+- MonitoRAD (decisões de 20/10/2026): entram os polígonos "Com indício de recuperação", qualquer que seja o `value`, recortados
+  pelo polígono do próprio embargo (o que fica fora não é usado); onde embargos se sobrepõem fica o mais antigo (`dat_embarg`).
+  Incluído de forma incremental (`incluir_monitorad_classe2.py`): a parte livre da classe 1 entra na classe 2 e sai das classes 3 a 11.
 - Embargos PANGIA (20/09/2026): mantidos só os 50.674 polígonos reais; removidos 13.810 registros sem
   geometria e 26.843 pontos (microcírculos), com extensão corrigida. Entram na classe 4 (Outros projetos) só pela
   interseção com a VS qualificada (`docs/tier4_outros_projetos.md`).
@@ -120,10 +123,11 @@ bioma (classes de projeto são antes fragmentadas nas células UF x bioma) e gra
 CAR separadas em Habilitados, Analisados e Não analisados (decisões de 28/09/2026). São geradas as duas
 versões da VS (2022 qualificada e 2022-2024 qualificada).
 
-Totais (campo `computo`, área geodésica líquida de cada classe): **8.596.928,3 ha** com a VS 2022 qualificada e
-**8.811.361,7 ha** com a VS 2022-2024 qualificada, já com o ICMBio na classe 4 (v0.9.0; antes, 8.588.727,1 e
-8.803.150,8 ha). A diferença entre as versões vem das classes de VS (6 a 11) e da parte PANGIA da classe 4
-(PANGIA x VS); as classes 1, 3 e 5 e o ICMBio não dependem da VS e são praticamente iguais nas duas versões.
+Totais (campo `computo`, área geodésica líquida de cada classe): **8.824.118,4 ha** com a VS 2022 qualificada e
+**9.026.415,6 ha** com a VS 2022-2024 qualificada, com as 11 classes ativas (v1.0.0: MonitoRAD na classe 2; antes,
+8.596.928,3 e 8.811.361,7 ha na v0.9.0, com o ICMBio, e 8.588.727,1 e 8.803.150,8 ha na v0.8.0). A diferença entre as
+versões vem das classes de VS (6 a 11) e da parte PANGIA da classe 4 (PANGIA x VS); as classes 1, 2, 3 e 5 e o ICMBio
+não dependem da VS e são praticamente iguais nas duas versões.
 
 ## 11. Pendências do cômputo 2026
 
@@ -138,6 +142,6 @@ O Total do reporte é a entrada do repositório
 [visualizacao_categoria-fundiaria](https://github.com/Geconsult-code/visualizacao_categoria-fundiaria),
 que fragmenta o cômputo por município e bacia e acrescenta atributos de filtro (categorias de CAR,
 APP/RL/AUR por categoria, componentes de projeto, UC/APA/RPPN e esferas, TI, assentamentos e
-quilombolas). Na versão de 16/10/2026 (com o ICMBio) a área de cada classe foi conservada com diferença
+quilombolas); desde a v1.2.0 o MonitoRAD é um componente próprio de PROJ. Na versão de 16/10/2026 (com o ICMBio) a área de cada classe foi conservada com diferença
 máxima de 0,002 ha, todas as classes têm 100% da área com a flag própria e a matriz de preenchimento dos
 atributos não tem nenhuma violação.

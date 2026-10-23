@@ -24,7 +24,7 @@ SAIDA_INSUMOS = SAIDA / "Insumos"               # passo 1: IN_<CLASSE> (elegíve
 SAIDA_TIER1 = SAIDA / "Tier1_Recooperar"        # passo 2 (classe 1): P2_RECOOPERAR + tabelas
 SAIDA_TIER2 = SAIDA / "Tier2_MonitoRAD"         # classe 2 (MonitoRAD), incluída por incluir_monitorad_classe2.py (20/10/2026)
 SAIDA_TIER3 = SAIDA / "Tier3_CAR_Regularizacao" # passo 2 (classe 3, SICAR-regularização)
-SAIDA_TIER4 = SAIDA / "Tier4_Outros_Projetos"   # passo 2 (classe 4, Outros projetos: por ora só embargos PANGIA x VS)
+SAIDA_TIER4 = SAIDA / "Tier4_Outros_Projetos"   # passo 2 (classe 4, Outros projetos: ICMBio; embargos PANGIA retirados em 21/10/2026)
 SAIDA_TIER5 = SAIDA / "Tier5_OR"                # passo 2 (classe 5, Observatório da Restauração)
 SAIDA_TIER6 = SAIDA / "Tier6_TI"                # passo 3 (classe 6, VS em Terras Indígenas)
 SAIDA_TIER7 = SAIDA / "Tier7_UC"                # passo 3 (classe 7, VS em Unidades de Conservação; APAs: área pública)
@@ -89,7 +89,7 @@ FONTES = {
         },
     },
     # ICMBio: incluído em 14/10/2026 pela área total dos polígonos (GEF Terrestre e Restauração Ecológica), já consolidado em
-    # SAIDA_INSUMOS/IN_ICMBio_2026.gpkg e somado à classe 4 por incluir_icmbio_classe4.py (ver docs/tier4_outros_projetos.md).
+    # SAIDA_INSUMOS/IN_ICMBio_2026.gpkg; desde a v1.1.0 é a única fonte da classe 4 (2_camada2_projetos.py OUTROS_PROJETOS).
     # Os arquivos abaixo (com VS) ficam só como referência; o cômputo não os lê.
     "outros_projetos": {
         "icmbio_restauracao": "Projetos_com_VegSec/ICMBio_Projetos_Restauracao_2026_com_VegSec.gpkg",
@@ -255,9 +255,14 @@ CAMPOS_CAR_REG = {"cod_tema": "cod_tema", "nom_tema": "nom_tema", "cod_imovel": 
                   "status_car": "ind_status", "condicao_car": "des_condic"}
 
 # ---------------------------------------------------------------------------
-# Classe 4 - Outros projetos: embargos PANGIA (a área é a VS DENTRO do embargo) e, desde 14/10/2026, ICMBio (área total
-# dos polígonos, incluída de forma incremental por incluir_icmbio_classe4.py).
+# Classe 4 - Outros projetos. Desde 21/10/2026 (v1.1.0): só os projetos do ICMBio (GEF Terrestre e Restauração Ecológica,
+# área total dos polígonos, insumo SAIDA_INSUMOS/IN_ICMBio_2026.gpkg). Os embargos PANGIA SAÍRAM da hierarquia (decisão do
+# usuário de 21/10/2026). Até a v1.0.0 a classe tinha os embargos PANGIA (a VS dentro do embargo) e o ICMBio, incluído de forma
+# incremental por incluir_icmbio_classe4.py; as regras do PANGIA abaixo ficam só como registro (fonte inativa).
 # ---------------------------------------------------------------------------
+# Fontes da classe 4: "icmbio" (ativo) e "embargos_pangia" (retirado em 21/10/2026). 2_camada2_projetos.py usa esta lista.
+FONTES_OUTROS_PROJETOS = ["icmbio"]
+ARQ_IN_ICMBIO = "IN_ICMBio_2026.gpkg"     # em SAIDA_INSUMOS, camada IN_ICMBIO (consolidado em 14/10/2026)
 # Decidido pelo usuário: embargos PANGIA entram como "Outros projetos" só pela interseção com a VS qualificada
 # (duas versões), nunca pela extensão total. E1 a E4 confirmadas pelo usuário em 21/09/2026 (ver docs/tier4_outros_projetos.md):
 #  E1 o arquivo de embargos não tem campo de situação/status: entram todos os 50.674 polígonos; o filtro é ter VS;

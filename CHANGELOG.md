@@ -2,6 +2,24 @@
 
 Histórico reconstituído a partir do README e dos registros de trabalho. Datas de 2026.
 
+## [1.0.0] - 21/10
+### Adicionado
+- MonitoRAD (IBAMA) como classe 2 (decisões de 20/10/2026): polígonos "Com indício de recuperação" de
+  `MonitoRAD_ANALISE`, qualquer `value`, recortados pelo polígono do próprio embargo, sem sobreposição (fica o embargo
+  mais antigo) e pela área total, sem cruzamento com a VS. Com isso as 11 classes da hierarquia estão ativas.
+- `consolidar_monitorad.py`: gera `Insumos/IN_MonitoRAD_2026.gpkg` (2.361 polígonos, 1.793 embargos, 287.389,4 ha).
+- `incluir_monitorad_classe2.py`: inclusão incremental; Δ = MonitoRAD menos a classe 1 (286.250,1 ha) entra na classe 2
+  (`Tier2_MonitoRAD/P2_MonitoRAD_2026.gpkg`) e é subtraído das classes 3 a 11, com conferência de interseção residual zero.
+- `docs/tier2_monitorad.md`; `gerar_geopackages_finais.py` gera `Planaveg_2026_Projetos_MonitoRAD.gpkg`; teste
+  `teste_monitorad_ativo`.
+### Alterado
+- `config_computo.py`: MONITORAD ativo, fonte `FONTES["monitorad"]` e `SAIDA_TIER2`.
+- Reporte final regerado: Total 8.824.118,4 ha (vs22q) e 9.026.415,6 ha (vs2224q), +227.190,1 e +215.053,9 ha em
+  relação à v0.9.0. Classe 4 -57.109,8 / -69.015,0 ha (PANGIA); RL -1.752,3 / -1.984,5 ha; APP -150,0 / -149,3 ha;
+  UC, TI e OR menos de 30 ha cada.
+- Documentação: README, metodologia, Anexo 1, dicionário de dados, classes 3 e 4. `metodologia.md` da raiz e de
+  `docs/` voltam a ser iguais; a de `docs/` estava desatualizada (ORR 2025, sem ICMBio e sem as seções 10 a 12).
+
 ## [0.9.0] - 16/10
 ### Adicionado
 - Projetos do ICMBio na classe 4 (Outros projetos), pela área total dos polígonos, sem cruzamento com a VS

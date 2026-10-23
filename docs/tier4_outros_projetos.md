@@ -94,11 +94,18 @@ classes 1, 3 e 4, a nova classe k é a classe k atual menos Δ, o mesmo resultad
 | Retirado da classe 6, TI (ha) | 48,8 | 46,6 |
 | Retirado das classes 8 a 11 (ha) | 0,3 | 0,3 |
 | **Efeito no total do cômputo (ha)** | **+8.201,2** | **+8.210,9** |
-| **Classe 4 final, PANGIA + ICMBio (ha, campo `computo`)** | **394.091,2** | **385.834,9** |
+| **Classe 4, PANGIA + ICMBio, na v0.9.0 (ha, campo `computo`)** | **394.091,2** | **385.834,9** |
 
 A sobreposição com o OR vem das camadas do GEF com "ORR" no nome, que são os mesmos projetos do Observatório: como a classe 4
 precede a 5, essa área passou a contar como ICMBio. Interseção residual depois da gravação: 0 em todas as camadas. O reporte final
 (`Reporte_Final/`) foi regerado depois da inclusão.
+
+## Efeito do MonitoRAD (classe 2, incluído em 20/10/2026)
+
+O MonitoRAD precede a classe 4 e 1.170 dos seus 1.793 embargos também estão no cadastro PANGIA. Na inclusão incremental
+(`docs/tier2_monitorad.md`) saíram da classe 4 57.109,8 ha (vs22q) e 69.015,0 ha (vs2224q), todos da parte PANGIA; o ICMBio
+não muda. Classe 4 final (v1.0.0, campo `computo`): **336.981,3 ha** (vs22q) e **316.819,9 ha** (vs2224q), dos quais PANGIA
+299.723,9 / 279.556,8 ha, GEF Terrestre 4.588,5 ha e Restauração Ecológica 32.669,0 / 32.674,5 ha.
 
 ## E4 (decidido em 21/09/2026: não filtrar): data do embargo x ano da VS
 

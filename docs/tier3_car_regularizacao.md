@@ -1,6 +1,6 @@
 # Classe 3: SICAR - regularização ambiental (área a recompor de APP e RL)
 
-Terceira classe da hierarquia do Anexo 1 (a classe 2, MonitoRAD, está desativada em 2026). Camada 2 (projetos):
+Terceira classe da hierarquia do Anexo 1, depois do Recooperar e do MonitoRAD. Camada 2 (projetos):
 conta a **área inteira** do polígono elegível, com ou sem VS. A classe **subtrai a classe 1** (Recooperar) e resolve
 a sobreposição dentro da própria classe. A VS que cai nas áreas fica como atributo do polígono.
 

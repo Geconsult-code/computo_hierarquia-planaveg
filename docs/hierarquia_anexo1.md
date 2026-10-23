@@ -7,7 +7,7 @@ Fonte: Relatório Técnico MMA/Conaveg (set/2026), Anexo 1 e seção 4.3.
 | Ordem | Classe | Camada | Critério-chave | Subtrai sobreposição com |
 |---|---|---|---|---|
 | 1 | Recooperar (IBAMA) | 2 | Intencionalidade | - |
-| 2 | MonitoRAD (IBAMA) | 2 | Intencionalidade | Recooperar (**desativado em 2026**) |
+| 2 | MonitoRAD (IBAMA) | 2 | Intencionalidade | Recooperar |
 | 3 | SICAR - regularização ambiental (área a recuperar) | 2 | Intencionalidade | Recooperar, MonitoRAD |
 | 4 | Outros projetos (MMA e demais órgãos) | 2 | Intencionalidade | Recooperar, MonitoRAD, SICAR-regularização |
 | 5 | Observatório da Restauração (público) | 2 | Intencionalidade | classes 1 a 4 |
@@ -26,7 +26,7 @@ Destinadas** (Cadastro Nacional de Florestas Públicas).
 | Classe | O que entra |
 |---|---|
 | Recooperar | Licenciamento (LAC): todas as áreas. Reparação por danos: a partir de "projeto protocolado". Embargos: "em recuperação" ou "recuperada". |
-| MonitoRAD | Embargos e licenciamento com indícios de recuperação (NDVI, metodologia do IBAMA). Fora do cômputo 2026. |
+| MonitoRAD | Embargos e licenciamento com indícios de recuperação (NDVI, metodologia do IBAMA). No cômputo 2026: polígonos "Com indício de recuperação", área total ([tier2_monitorad.md](tier2_monitorad.md)). |
 | SICAR-regularização | Área a recuperar dos imóveis com CAR "Analisado, em regularização ambiental (Lei 12.651/2012)". |
 | Outros projetos | Polígonos de projetos de restauração do MMA e de outros ministérios e órgãos, com atributos mínimos do Anexo 3. |
 | OR | Polígonos registrados como "público" na plataforma. |
