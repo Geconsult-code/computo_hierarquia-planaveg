@@ -655,7 +655,8 @@ def classe_outros_projetos(log, so_primeiros=None):
 
 
 def classe_outros_projetos_icmbio(log):
-    """Classe 4 desde a v1.1.0 (21/10/2026): só os projetos do ICMBio, pela ÁREA TOTAL dos polígonos (sem VS).
+    """Classe 4 desde a v1.1.0 (21/10/2026): projetos do ICMBio e, desde a v1.2.0 (23/10/2026), da FUNBIO, pela ÁREA TOTAL dos
+    polígonos (sem VS). As fontes e a precedência entre elas vêm de cfg.FONTES_OUTROS_PROJETOS (ICMBio antes da FUNBIO).
 
     Os embargos PANGIA saíram da hierarquia (decisão do usuário de 21/10/2026). O insumo IN_ICMBio_2026 (GEF Terrestre e
     Restauração Ecológica, decisões de 14/10/2026) já vem sem sobreposição interna; mesmo assim a precedência dentro da classe é
@@ -664,15 +665,22 @@ def classe_outros_projetos_icmbio(log):
     import geopandas as gpd
 
     P = list(cfg.VS_VERSOES)
-    arq_in = cfg.SAIDA_INSUMOS / cfg.ARQ_IN_ICMBIO
-    if not arq_in.exists():
-        raise FileNotFoundError(f"Não encontrei {arq_in} (insumo consolidado do ICMBio).")
     cfg.SAIDA_TIER4.mkdir(parents=True, exist_ok=True)
-    g = io.ler_camada(arq_in, "IN_ICMBIO").sort_values("id_icmbio").reset_index(drop=True)
+    partes = []
+    for fonte in cfg.FONTES_OUTROS_PROJETOS:          # a ordem da lista é a precedência dentro da classe (ICMBio antes da FUNBIO)
+        arq_in, camada, campo_id, prefixo = cfg.INSUMOS_OUTROS_PROJETOS[fonte]
+        arq_in = cfg.SAIDA_INSUMOS / arq_in
+        if not arq_in.exists():
+            raise FileNotFoundError(f"Não encontrei {arq_in} (insumo consolidado de {fonte}).")
+        x = io.ler_camada(arq_in, camada).sort_values(campo_id).reset_index(drop=True)
+        x.insert(0, "id_proj", [f"{prefixo}-{int(i):05d}" for i in x[campo_id]])
+        log(f"{camada}: {len(x)} polígonos ({x.groupby('fonte').size().to_dict()})")
+        partes.append(x)
+    g = gpd.GeoDataFrame(pd.concat(partes, ignore_index=True), geometry="geometry", crs=partes[0].crs)
     n = len(g)
-    ids = np.array([f"ICMBIO-{int(i):05d}" for i in g["id_icmbio"]], dtype=object)
+    ids = g.pop("id_proj").to_numpy(dtype=object)
     geoms = np.array(g.geometry.values, dtype=object)
-    log(f"IN_ICMBIO: {n} polígonos ({g.groupby('fonte').size().to_dict()}); embargos PANGIA fora da classe (21/10/2026)")
+    log(f"classe 4: {n} polígonos de {cfg.FONTES_OUTROS_PROJETOS}; embargos PANGIA fora da classe (21/10/2026)")
     por_classe = _geoms_por_classe("OUTROS_PROJETOS")
     prec = np.concatenate([x for _, x in por_classe])
     log(f"classes anteriores subtraídas: {[c for c, _ in por_classe]} ({len(prec)} polígonos líquidos)")
@@ -799,7 +807,7 @@ def classe_outros_projetos_icmbio(log):
     U = geo.uniao_robusta(list(geoms))
     R_prec = geo.uniao_robusta(list(prec))
     esp = geo.so_poligonos(geo.diferenca_robusta([U], [R_prec])[0]) if R_prec is not None else U
-    chk("área líquida - área (união do ICMBio - união das classes 1, 2 e 3) (ha)",
+    chk("área líquida - área (união da classe 4 - união das classes 1, 2 e 3) (ha)",
         float(a_liq.sum() - (geo.area_ha([esp])[0] if esp is not None else 0.0)), tol, "soma dos líquidos x cálculo independente por união")
     lg = liq.geometry.values
     tree = STRtree(lg)
@@ -813,7 +821,7 @@ def classe_outros_projetos_icmbio(log):
     chk("sobreposição dos líquidos com as classes 1, 2 e 3 (ha)", float(ov2.sum()), 1e-3)
     chk("área inteira - soma das células UF x bioma (ha, max por polígono)",
         float(np.abs(a_bruta - cel.groupby("i")["area_completa_ha"].sum().reindex(range(n)).fillna(0).to_numpy()).max()), 0.01)
-    chk("área inteira x area_ha_geo do insumo (ha, max por polígono)", float(np.abs(a_bruta - g["area_ha_geo"].to_numpy(float)).max()), 0.01)
+    chk("área inteira x area_ha_geo do insumo (ha, max por polígono)", float(np.nanmax(np.abs(a_bruta - g["area_ha_geo"].to_numpy(float)))), 0.01)
     chk("polígonos com área líquida sem UF principal", float(((a_liq > 1e-6) & pol["uf_principal"].isna().to_numpy()).sum()), 0)
     chk("geometrias líquidas inválidas", float((~shapely.is_valid(lg)).sum()), 0)
     conf = pd.DataFrame(conf)
@@ -828,7 +836,7 @@ def classe_outros_projetos_icmbio(log):
 def classe_outros_projetos_ativa(log):
     """Classe 4 conforme cfg.FONTES_OUTROS_PROJETOS: ICMBio (desde 21/10/2026) ou, até a v1.0.0, os embargos PANGIA."""
     fontes = list(cfg.FONTES_OUTROS_PROJETOS)
-    if fontes == ["icmbio"]:
+    if "embargos_pangia" not in fontes:
         return classe_outros_projetos_icmbio(log)
     if fontes == ["embargos_pangia"]:
         return classe_outros_projetos(log)

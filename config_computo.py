@@ -260,9 +260,16 @@ CAMPOS_CAR_REG = {"cod_tema": "cod_tema", "nom_tema": "nom_tema", "cod_imovel": 
 # usuário de 21/10/2026). Até a v1.0.0 a classe tinha os embargos PANGIA (a VS dentro do embargo) e o ICMBio, incluído de forma
 # incremental por incluir_icmbio_classe4.py; as regras do PANGIA abaixo ficam só como registro (fonte inativa).
 # ---------------------------------------------------------------------------
-# Fontes da classe 4: "icmbio" (ativo) e "embargos_pangia" (retirado em 21/10/2026). 2_camada2_projetos.py usa esta lista.
-FONTES_OUTROS_PROJETOS = ["icmbio"]
+# Fontes da classe 4: "icmbio" e "funbio" (ativas) e "embargos_pangia" (retirado em 21/10/2026). 2_camada2_projetos.py usa esta lista.
+# 23/10/2026 (v1.2.0): entram as áreas de restauração da FUNBIO (FUNBIO_Areas_Restauracao_20261023.gpkg, 5 camadas), pela área
+# total, todos os polígonos (inclusive projetos com término após 2026); sobreposição interna: fica o polígono maior
+# (consolidar_funbio.py -> Insumos/IN_FUNBIO_2026.gpkg); na sobreposição com o ICMBio, o ICMBio fica com a área (ordem da lista).
+FONTES_OUTROS_PROJETOS = ["icmbio", "funbio"]
 ARQ_IN_ICMBIO = "IN_ICMBio_2026.gpkg"     # em SAIDA_INSUMOS, camada IN_ICMBIO (consolidado em 14/10/2026)
+ARQ_IN_FUNBIO = "IN_FUNBIO_2026.gpkg"     # em SAIDA_INSUMOS, camada IN_FUNBIO (consolidado em 23/10/2026)
+# fonte -> (arquivo em SAIDA_INSUMOS, camada, campo de id, prefixo do id_proj)
+INSUMOS_OUTROS_PROJETOS = {"icmbio": (ARQ_IN_ICMBIO, "IN_ICMBIO", "id_icmbio", "ICMBIO"),
+                           "funbio": (ARQ_IN_FUNBIO, "IN_FUNBIO", "id_funbio", "FUNBIO")}
 # Decidido pelo usuário: embargos PANGIA entram como "Outros projetos" só pela interseção com a VS qualificada
 # (duas versões), nunca pela extensão total. E1 a E4 confirmadas pelo usuário em 21/09/2026 (ver docs/tier4_outros_projetos.md):
 #  E1 o arquivo de embargos não tem campo de situação/status: entram todos os 50.674 polígonos; o filtro é ter VS;
