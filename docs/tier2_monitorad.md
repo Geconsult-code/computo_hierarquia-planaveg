@@ -69,7 +69,7 @@ classe 1, a nova classe k é a classe k anterior menos Δ, o mesmo resultado de 
 |---|---:|---:|
 | MonitoRAD já coberto pela classe 1, Recooperar (ha) | 1.139,3 | 1.139,3 |
 | **Δ, classe 2 (ha)** | **286.250,1** | **286.250,1** |
-| Retirado da classe 4, Outros projetos (PANGIA) (ha) | 57.109,8 | 69.015,0 |
+| Retirado da classe 4, Outros projetos (PANGIA; retirados da hierarquia em 21/10/2026) (ha) | 57.109,8 | 69.015,0 |
 | Retirado da classe 11, RL (ha) | 1.752,3 | 1.984,5 |
 | Retirado da classe 9, APP (ha) | 150,0 | 149,3 |
 | Retirado das classes 7 UC / 6 TI / 5 OR (ha) | 27,8 / 14,4 / 5,8 | 27,2 / 14,3 / 5,9 |

@@ -2,6 +2,38 @@
 
 Histórico reconstituído a partir do README e dos registros de trabalho. Datas de 2026.
 
+## [1.2.0] - 23/10
+### Adicionado
+- Áreas de restauração da FUNBIO na classe 4 (decisões de 23/10/2026): as 5 camadas de
+  `FUNBIO_Areas_Restauracao_20261023.gpkg` (RockRio, Mata Atlântica, GEF Terrestre, Floresta Viva, AMLD), pela área total,
+  todos os polígonos (inclusive os com término após 2026); sobreposição interna: fica o polígono maior; sobreposição com o
+  ICMBio: fica o ICMBio.
+- `consolidar_funbio.py`: gera `Insumos/IN_FUNBIO_2026.gpkg` (2.417 polígonos, 14.866,6 ha).
+- `incluir_funbio_classe4.py`: depois de refazer a classe 4 com ICMBio e FUNBIO, subtrai a FUNBIO livre (10.135,8 ha) das
+  classes 5 a 11 (camadas nacionais e por UF), com conferência de interseção residual zero.
+- `config_computo.py`: `FONTES_OUTROS_PROJETOS = ["icmbio", "funbio"]` (a ordem é a precedência) e `INSUMOS_OUTROS_PROJETOS`.
+### Alterado
+- `2_camada2_projetos.py`: a classe 4 lê as fontes de `cfg.FONTES_OUTROS_PROJETOS` (ICMBio, FUNBIO), cada uma com o seu insumo.
+- Reporte final regerado: Total 8.610.074,0 ha (vs22q) e 8.834.315,2 ha (vs2224q), +8.504,5 e +8.509,8 ha em relação à
+  v1.1.0. Classe 4 47.431,4 ha (ICMBio 37.295,6 + FUNBIO 10.135,8); OR -1.378,8 ha; UC -202,9 / -177,5 ha; APP e RL
+  menos de 40 ha cada.
+- Documentação: README, metodologia, Anexo 1, dicionário de dados e `docs/tier4_outros_projetos.md` (reescrito: classe 4
+  atual, ICMBio, FUNBIO e histórico do PANGIA).
+
+## [1.1.0] - 22/10
+### Removido
+- Embargos PANGIA da hierarquia (decisão de 21/10/2026). A classe 4 passa a ser só o ICMBio, calculada por
+  `2_camada2_projetos.py OUTROS_PROJETOS` direto de `Insumos/IN_ICMBio_2026.gpkg` (função `classe_outros_projetos_icmbio`),
+  subtraídas as classes 1, 2 e 3; a classe é igual nas duas versões da VS. Saída renomeada para
+  `Tier4_Outros_Projetos/P2_Outros_Projetos_2026.gpkg`.
+### Alterado
+- Classes 4 a 11 recalculadas pelos scripts normais (2, 3 e 3b) e reporte final regerado: Total 8.601.569,5 ha (vs22q) e
+  8.825.805,5 ha (vs2224q), -222.549,0 e -200.610,1 ha em relação à v1.0.0. Classe 4 de 336.981,3 / 316.819,9 para 37.295,6
+  ha; a área passa às classes seguintes (UC +25,5 / +25,6 mil ha, RL +27,6 / +28,5 mil, TI +12,9 / +13,4 mil, OR +6,0 mil, APP +4,9 /
+  +5,2 mil).
+- `config_computo.py`: `FONTES_OUTROS_PROJETOS`, `ARQ_IN_ICMBIO`; `computo/anteriores.py`: `ARQ_OUT_EMB` aponta para o arquivo
+  novo. `incluir_icmbio_classe4.py` fica só como registro (obsoleto).
+
 ## [1.0.0] - 21/10
 ### Adicionado
 - MonitoRAD (IBAMA) como classe 2 (decisões de 20/10/2026): polígonos "Com indício de recuperação" de

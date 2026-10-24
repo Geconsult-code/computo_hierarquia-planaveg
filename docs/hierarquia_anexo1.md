@@ -28,7 +28,7 @@ Destinadas** (Cadastro Nacional de Florestas Públicas).
 | Recooperar | Licenciamento (LAC): todas as áreas. Reparação por danos: a partir de "projeto protocolado". Embargos: "em recuperação" ou "recuperada". |
 | MonitoRAD | Embargos e licenciamento com indícios de recuperação (NDVI, metodologia do IBAMA). No cômputo 2026: polígonos "Com indício de recuperação", área total ([tier2_monitorad.md](tier2_monitorad.md)). |
 | SICAR-regularização | Área a recuperar dos imóveis com CAR "Analisado, em regularização ambiental (Lei 12.651/2012)". |
-| Outros projetos | Polígonos de projetos de restauração do MMA e de outros ministérios e órgãos, com atributos mínimos do Anexo 3. |
+| Outros projetos | Polígonos de projetos de restauração do MMA e de outros ministérios e órgãos, com atributos mínimos do Anexo 3. No cômputo 2026: ICMBio (GEF Terrestre e Restauração Ecológica) e FUNBIO, área total; embargos PANGIA retirados em 21/10/2026 ([tier4_outros_projetos.md](tier4_outros_projetos.md)). |
 | OR | Polígonos registrados como "público" na plataforma. |
 | TI | VS em TI nas fases delimitada, declarada, homologada ou regularizada. |
 | UC | VS em UCs do CNUC (proteção integral e uso sustentável); em APAs, só as áreas públicas. |

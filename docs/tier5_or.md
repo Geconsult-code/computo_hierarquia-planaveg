@@ -38,6 +38,7 @@ customizado: `+proj=aea +lat_0=-12 +lon_0=-54 +lat_1=-2 +lat_2=-22 +x_0=0 +y_0=0
 | Filtro de status | nenhum: todos os polígonos entram, qualquer que seja `ProjAtivo` | Decidido (24/09/2026) |
 | Precedência entre projetos sobrepostos | menor `fid_orig` (não há outro critério nos dados de origem) | Adotado (24/09/2026), consistente com o critério de desempate já usado em outras classes com múltiplos polígonos |
 | ICMBio | incluído na classe 4 em 14/10/2026 (área total); como a classe 4 precede a 5, a área comum sai do OR: -28.196,1 ha (vs22q) e -28.202,3 ha (vs2224q), 860 polígonos líquidos apagados e cerca de 1.630 recortados. Classe 5 final: 159.072,6 e 159.084,5 ha (ver `docs/tier4_outros_projetos.md`) | Aplicado (14/10/2026) |
+| PANGIA e FUNBIO | embargos PANGIA retirados da classe 4 em 21/10/2026 (o OR recupera 5.964,1 / 5.952,1 ha e passa a ser igual nas duas versões, 165.030,8 ha); FUNBIO incluída na classe 4 em 23/10/2026 (o OR perde 1.378,8 ha). Classe 5 na v1.2.0: **163.652,0 ha** nas duas versões | Aplicado (23/10/2026) |
 
 ## Hierarquia
 

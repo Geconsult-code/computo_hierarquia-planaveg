@@ -12,9 +12,10 @@ campos vêm da leitura direta dos arquivos.
 | `IBAMA_Areas_Embargadas_MonitoRAD2026.gpkg` (entrada da classe 2, via `Insumos\IN_MonitoRAD_2026.gpkg`) | `MonitoRAD_ANALISE` (clusters de NDVI; 2.392 peças "Com indício de recuperação"); `MonitoRAD_EMBARGOS` (polígonos dos embargos) | Campos `avaliacao`, `value`, `seq_tad` (= `NUM_TAD_1` dos embargos), `Area_ha`; `dat_embarg` nos embargos. Ver `docs/tier2_monitorad.md` |
 | `CAR_Junho26_Regularizacao_Ambiental.gpkg` (EPSG:4674; só AC, MT, PB, RJ e SP; entrada da classe 3) | Limite do imóvel (2.398); APPs (44.631); RL (2.477); AUR (183); Vegetação nativa (2.323); **Área a recompor APP (1.242); Área a recompor RL (1.238)** | Camadas nomeadas "Julho26" dentro de arquivo "Junho26". Chave `cod_imovel`. Fonte da classe SICAR-regularização |
 | `ICMBio_Projetos_Restauracao_2026_com_area.gpkg` | Restauracao_Ecologica (3.609); Areas_Degradadas (3.855); Embargos_maior5ha (3.685) | CRS não definido no arquivo. Só `Restauracao_Ecologica` entra na classe 4 (decisão de 14/10/2026) |
+| `FUNBIO_Areas_Restauracao_20261023.gpkg` (EPSG:4674; entrada da classe 4 desde 23/10/2026, via `Insumos\IN_FUNBIO_2026.gpkg`) | RockRio (83); MataAtlantica (344); GEF_Terrestre (582); FlorestaViva (1.434); AMLD (6) | Geometrias 3D com medida (Z/M descartados). Campos com grafias diferentes entre camadas (ID/id/id_1, ANO_FINAL/ANO_FIM, BIOMA/Bioma), padronizados por `consolidar_funbio.py`. Ver `docs/tier4_outros_projetos.md` |
 | `ICMBio_Projetos_GEF_Terrestre_2026_com_area.gpkg` | 7 camadas (Pantanal, Pampa, Caatinga; 4 a 326 feições) | CRS heterogêneos (sem CRS, 32722, 31981, 31984), geometrias 3D. As 7 camadas entram na classe 4 (decisão de 14/10/2026) |
 | `ORR_Observatorio_Restauracao_2025_com_area.gpkg` | 1 camada, 4 feições (uma por bioma: Amazônia, Caatinga, Cerrado, Mata Atlântica; 48,7 mil ha) | Campo `hierarquia` = ORR. Já dissolvido; sem Pampa e Pantanal. CRS Albers customizado (WKT "Albers"; no QGIS/GDAL usar `+proj=aea +lat_0=-12 +lon_0=-54 +lat_1=-2 +lat_2=-22 +x_0=0 +y_0=0 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs`), geometrias Z/M e 38.473 partes. Entrada da classe 5 (área total, com ou sem VS) |
-| `IBAMA_Areas_Embargadas_PANGIA20260920_Poligonos.gpkg` (EPSG:4674) | 1 camada, 50.674 polígonos (5,88 Mha somados; 5,16 Mha sem sobreposição interna) | Versão limpa de `..._PANGIA20260920.gpkg` (91.327 registros). Chave `num_tad` + `serie_tad` (`seq_tad` = 0 em 1.563 registros). Sem campo de status de recuperação. Entrada da classe 4 (só a VS dentro do embargo). Colunas com nome/CPF/CNPJ do embargado e textos livres (`nome_embar`, `cpf_cnpj_e`, `nome_imove`, `des_locali`, `des_tad`, `des_infrac`) **não** seguem para o cômputo (LGPD) |
+| `IBAMA_Areas_Embargadas_PANGIA20260920_Poligonos.gpkg` (EPSG:4674) | 1 camada, 50.674 polígonos (5,88 Mha somados; 5,16 Mha sem sobreposição interna) | Versão limpa de `..._PANGIA20260920.gpkg` (91.327 registros). Chave `num_tad` + `serie_tad` (`seq_tad` = 0 em 1.563 registros). Sem campo de status de recuperação. Foi entrada da classe 4 (só a VS dentro do embargo) até a v1.0.0; **fora da hierarquia desde 21/10/2026**. Colunas com nome/CPF/CNPJ do embargado e textos livres (`nome_embar`, `cpf_cnpj_e`, `nome_imove`, `des_locali`, `des_tad`, `des_infrac`) **não** seguem para o cômputo (LGPD) |
 
 ## Camada 1 - governança
 
@@ -90,7 +91,17 @@ Colunas próprias da tabela de polígonos: `id_proj`, `categoria` (app/rl), `cod
 `area_sobreposta_classes_anteriores_ha`, `n_precedentes_sobrepostos`, `area_sobreposta_na_classe_ha`, `area_liquida_ha`, `uf_principal`, `ufs`,
 `bioma_principal`, `biomas`, `area_fora_ibge_ha`, `uf_diverge_car`, `vs*_completa_recalc_ha`, `vs*_liq_ha`.
 
-## Saídas da classe 4 (Outros projetos: embargos PANGIA)
+## Saídas da classe 4 (Outros projetos: ICMBio e FUNBIO, desde a v1.2.0)
+
+| Arquivo | Conteúdo |
+|---|---|
+| `Insumos\IN_ICMBio_2026.gpkg` (`IN_ICMBIO`) | ver abaixo, "ICMBio na classe 4" |
+| `Insumos\IN_FUNBIO_2026.gpkg` (`IN_FUNBIO`) | 2.417 polígonos sem sobreposição interna (fica o maior), 14.866,6 ha. Campos `id_funbio`, `camada_orig`, `id_orig`, `programa`, `projeto`, `subprojeto`, `fonte_financ`, `instrumento`, `edital`, `executor`, `estrategia`, `tecnica`, `ano_inicio`, `ano_fim`, `municipio_fonte`, `uf_fonte`, `bioma_fonte`, `area_attr_ha` (campo ÁREA_HA), `area_orig_ha`, `area_ha_geo`, `sobreposta_funbio_maior_ha`, `recortado_por_maior`, `fonte` (`FUNBIO_2026`) |
+| `Tier4_Outros_Projetos\P2_Outros_Projetos_2026.gpkg` | `P2_OUTROS_PROJETOS_poligonos` (polígonos inteiros do ICMBio e da FUNBIO, `id_proj` `ICMBIO-nnnnn` / `FUNBIO-nnnnn`, sobreposições com as classes 1 a 3 e dentro da classe, área líquida, UF e bioma principais, `elegivel_computo`); `P2_OUTROS_PROJETOS_vs22q` e `_vs2224q` (polígonos líquidos, iguais nas duas versões: `id_proj`, `fonte`, `projeto`, `uf_principal`, `bioma_principal`, `area_liquida_ha`) |
+| `T4_resumo.csv` (por fonte), `T4_resumo_uf_bioma.csv`, `T4_areas_uf_bioma.csv`, `T4_conferencias.csv`, `T4_acumulado_classes_1_3_4.csv` (classes 1 a 4, incluindo a 2) | Resumos, tabela longa polígono x UF x bioma, conferências e acumulado |
+| `Tier4_Outros_Projetos\FUNBIO_incremental_resumo.csv` / `_alteracoes.csv` / `_estado.json`, `_log_funbio_incremental.txt` | Inclusão incremental da FUNBIO: área retirada por camada das classes 5 a 11, feições alteradas, retomada e log |
+
+## Saídas da classe 4 até a v1.0.0 (embargos PANGIA; histórico)
 
 Em `Computo_Planaveg_2026\Insumos` e `Computo_Planaveg_2026\Tier4_Outros_Projetos` (ver `docs/tier4_outros_projetos.md`).
 Entrada: `IBAMA_Areas_Embargadas_PANGIA20260920_Poligonos.gpkg` e o cruzamento com a VS qualificada em
@@ -112,7 +123,7 @@ Colunas próprias da tabela de polígonos: `id_proj` (`EMB-<fid>`), `num_tad`, `
 `<p>_sobreposta_classes_anteriores_ha`, `<p>_n_precedentes_sobrepostos`, `<p>_sobreposta_na_classe_ha`, `<p>_area_liquida_ha`,
 `<p>_uf_principal`, `<p>_ufs`, `<p>_bioma_principal`, `<p>_biomas`, `<p>_uf_diverge_fonte`, `<p>_area_fora_ibge_ha`.
 
-### ICMBio na classe 4 (desde 14/10/2026)
+### ICMBio na classe 4 (desde 14/10/2026; inclusão incremental da v0.9.0)
 
 | Arquivo | Conteúdo |
 |---|---|
